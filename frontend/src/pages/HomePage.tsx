@@ -432,7 +432,7 @@ const HomePage = () => {
             </Grid>
             <Grid item xs={12} md={6}>
               <StepCard>
-                <StepNumber>Bước 4: So sánh màu sắn phẩm cùng lúc</StepNumber>
+                <StepNumber>Bước 4: So sánh màu sản phẩm cùng lúc</StepNumber>
                 <Typography>
                   Chọn nhiều sản phẩm cùng lúc để thử và so sánh phối hợp hoặc tổng thể. Mỗi lần bạn đổi màu phù hợp nhất.
                 </Typography>
