@@ -187,4 +187,3 @@ dependencies:
       - xxhash==3.5.0
       - yarl==1.20.0
       - zipp==3.21.0
-prefix: /home/maq159/anaconda3/envs/flashion

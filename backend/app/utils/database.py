@@ -11,7 +11,8 @@ from app.models.consultation import Consultation
 
 load_dotenv()
 
-MONGODB_URL = os.getenv("MONGODB_URI", "mongodb://localhost:27017")
+# Use MONGO_URI for Docker, fallback to localhost for dev
+MONGODB_URL = os.getenv("MONGO_URI", "mongodb://localhost:27017")
 DATABASE_NAME = "flashion"
 
 client = None

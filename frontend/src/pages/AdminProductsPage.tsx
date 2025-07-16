@@ -451,6 +451,8 @@ const AdminProductsPage = () => {
           <CircularProgress />
           <Typography sx={{ ml: 2 }}>Loading products...</Typography>
         </Box>
+        {/* Always render Dialog and Snackbar */}
+        {renderDialogAndSnackbar()}
       </Container>
     );
   }
@@ -464,13 +466,16 @@ const AdminProductsPage = () => {
         <Button variant="contained" onClick={fetchProducts}>
           Retry
         </Button>
+        {/* Always render Dialog and Snackbar */}
+        {renderDialogAndSnackbar()}
       </Container>
     );
   }
 
+  // MAIN CONTENT VARIABLE
+  let mainContent;
   if (!products || products.length === 0) {
-    return (
-      <Container maxWidth="lg" sx={{ py: 4 }}>
+    mainContent = (
         <Paper sx={{ p: 2, textAlign: 'center' }}>
           <Typography variant="h6" gutterBottom>
             No products found
@@ -483,12 +488,9 @@ const AdminProductsPage = () => {
             Add New Product
           </Button>
         </Paper>
-      </Container>
     );
-  }
-
-  return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
+  } else {
+    mainContent = (
       <Grid container spacing={3}>
         <Grid item xs={12}>
           <Paper sx={{ p: 2 }}>
@@ -647,7 +649,13 @@ const AdminProductsPage = () => {
           </Paper>
         </Grid>
       </Grid>
+    );
+  }
 
+  // Always render Dialog and Snackbar
+  function renderDialogAndSnackbar() {
+    return (
+      <>
       {/* Delete Confirmation Dialog */}
       <Dialog
         open={deleteConfirmOpen}
@@ -682,6 +690,7 @@ const AdminProductsPage = () => {
         </DialogActions>
       </Dialog>
 
+        {/* Product Form Dialog */}
       <Dialog
         open={openDialog}
         onClose={handleCloseDialog}
@@ -959,6 +968,15 @@ const AdminProductsPage = () => {
           {snackbar.message}
         </Alert>
       </Snackbar>
+      </>
+    );
+  }
+
+  // MAIN RETURN
+  return (
+    <Container maxWidth="lg" sx={{ py: 4 }}>
+      {mainContent}
+      {renderDialogAndSnackbar()}
     </Container>
   );
 };

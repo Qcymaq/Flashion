@@ -17,8 +17,8 @@ app.add_middleware(
 )
 
 # Mount static files
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
-app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/uploads", StaticFiles(directory="app/uploads"), name="uploads")
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 # Event handlers
 @app.on_event("startup")
