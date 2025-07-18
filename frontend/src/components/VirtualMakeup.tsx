@@ -21,6 +21,7 @@ import { ColorResult, SketchPicker } from 'react-color';
 import { Camera, Upload, X, ShoppingCart } from 'lucide-react';
 import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
+import UpgradeMembershipModal from './UpgradeMembershipModal';
 
 const Input = styled('input')({
   display: 'none',
@@ -81,9 +82,10 @@ const VirtualMakeup: React.FC<VirtualMakeupProps> = ({
   const streamRef = useRef<MediaStream | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [cartMessage, setCartMessage] = useState<string | null>(null);
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
   
   const { addToCart } = useCart();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, refreshUser } = useAuth();
 
   useEffect(() => {
     return () => {
@@ -193,10 +195,20 @@ const VirtualMakeup: React.FC<VirtualMakeupProps> = ({
         body: formData,
         headers: {
           'Accept': 'image/jpeg',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
         },
       });
 
       if (!response.ok) {
+        // Check for try-on limit exceeded
+        if (response.status === 403) {
+          const errorData = await response.json().catch(() => null);
+          if (errorData && errorData.detail && errorData.detail.includes('try-on limit')) {
+            setError('Bạn đã vượt quá số lần thử cho hạng thành viên hiện tại. Vui lòng nâng cấp để tiếp tục sử dụng.');
+            setUpgradeOpen(true);
+            return;
+          }
+        }
         const errorData = await response.json().catch(() => null);
         throw new Error(errorData?.detail || 'Failed to process image');
       }
@@ -204,9 +216,11 @@ const VirtualMakeup: React.FC<VirtualMakeupProps> = ({
       const blob = await response.blob();
       const imageUrl = URL.createObjectURL(blob);
       setResultImage(imageUrl);
+      // Refresh user profile to update try-on count
+      if (refreshUser) await refreshUser();
     } catch (err) {
       console.error('Error uploading image:', err);
-      setError('Failed to process image. Please try again.');
+      setError('Không thể xử lý ảnh. Vui lòng thử lại.');
     } finally {
       setLoading(false);
     }
@@ -386,6 +400,11 @@ const VirtualMakeup: React.FC<VirtualMakeupProps> = ({
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
           {error}
+          {error.includes('nâng cấp') && (
+            <Button color="primary" onClick={() => setUpgradeOpen(true)} sx={{ ml: 2 }}>
+              Nâng cấp thành viên
+            </Button>
+          )}
         </Alert>
       )}
 
@@ -685,6 +704,7 @@ const VirtualMakeup: React.FC<VirtualMakeupProps> = ({
           </Grid>
         )}
       </Grid>
+      <UpgradeMembershipModal open={upgradeOpen} onClose={() => setUpgradeOpen(false)} user={null} />
     </Container>
   );
 };

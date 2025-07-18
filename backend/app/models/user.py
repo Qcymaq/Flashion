@@ -12,6 +12,8 @@ class User(Document):
     shipping_address: Optional[str] = None
     role: str = "user"  # user, admin
     is_active: bool = True
+    membership: str = "free"  # free, gold, diamond
+    try_on_count: int = 0
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 

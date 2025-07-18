@@ -1,9 +1,11 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException, Form
+from fastapi import APIRouter, UploadFile, File, HTTPException, Form, Depends
 from fastapi.responses import Response
 from PIL import Image
 import io
 from ..utils.virtual_makeup import VirtualMakeupProcessor
 from typing import Optional, Literal
+from app.utils.auth import get_current_active_user
+from app.schemas.user import UserInDB
 
 router = APIRouter()
 makeup_processor = VirtualMakeupProcessor()
@@ -15,9 +17,26 @@ async def try_makeup(
     lips_intensity: int = Form(...),
     cheeks_color: str = Form(...),
     cheeks_intensity: int = Form(...),
-    makeup_type: Literal["lips", "cheeks", "both"] = Form(...)
+    makeup_type: Literal["lips", "cheeks", "both"] = Form(...),
+    current_user: UserInDB = Depends(get_current_active_user)
 ):
     try:
+        # Exempt admins from try-on limits
+        if current_user.role == "admin":
+            is_admin = True
+        else:
+            is_admin = False
+        # Enforce try-on limits based on membership (skip for admin)
+        if not is_admin:
+            membership_limits = {
+                "free": 10,
+                "gold": 50,
+                "diamond": float('inf')
+            }
+            limit = membership_limits.get(current_user.membership, 10)
+            if current_user.try_on_count >= limit:
+                raise HTTPException(status_code=403, detail=f"You have reached your try-on limit for your {current_user.membership} account. Please upgrade to try more.")
+
         # Log received parameters
         print(f"Received parameters: lips_color={lips_color}, lips_intensity={lips_intensity}, cheeks_color={cheeks_color}, cheeks_intensity={cheeks_intensity}, makeup_type={makeup_type}")
         
@@ -61,7 +80,13 @@ async def try_makeup(
         img_byte_arr = io.BytesIO()
         result_image.save(img_byte_arr, format='JPEG')
         img_byte_arr.seek(0)
-        
+
+        # After successful try-on, increment try_on_count in the database (skip for admin)
+        if not is_admin:
+            from app.utils.database import get_database
+            db = get_database()
+            await db.users.update_one({"_id": current_user.id}, {"$inc": {"try_on_count": 1}})
+
         # Return the image directly
         return Response(
             content=img_byte_arr.getvalue(),

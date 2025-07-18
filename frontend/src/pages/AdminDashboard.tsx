@@ -27,6 +27,15 @@ import {
   Alert,
   Snackbar,
   Tooltip,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Select,
+  Chip,
+  Fade,
 } from '@mui/material';
 import {
   People as PeopleIcon,
@@ -39,6 +48,11 @@ import {
   RestartAlt as ResetIcon,
   Analytics as AnalyticsIcon,
   Download as DownloadIcon,
+  Group as GroupIcon,
+  Upgrade as UpgradeIcon,
+  CheckCircle as ApproveIcon,
+  Cancel as DenyIcon,
+  FilterList as FilterIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { fetchWithAuth } from '../utils/api';
@@ -95,8 +109,13 @@ const AdminDashboard = () => {
     severity: 'info',
   });
 
+  // Membership requests state
+  const [pendingRequests, setPendingRequests] = useState<any[]>([]);
+  const [pendingLoading, setPendingLoading] = useState(false);
+
   useEffect(() => {
     fetchDashboardData();
+    fetchPendingRequests();
   }, []);
 
   const fetchDashboardData = async () => {
@@ -137,6 +156,34 @@ const AdminDashboard = () => {
       setError(error instanceof Error ? error.message : 'Failed to fetch dashboard data');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchPendingRequests = async () => {
+    setPendingLoading(true);
+    try {
+      const url = endpoints.admin.membershipRequests('pending');
+      console.log('Dashboard fetching pending requests from:', url);
+      
+      const res = await fetchWithAuth(url);
+      console.log('Dashboard response status:', res.status);
+      
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error('Dashboard error response:', errorText);
+        throw new Error('Failed to fetch pending requests');
+      }
+      
+      const data = await res.json();
+      console.log('Dashboard fetched pending requests:', data);
+      console.log('Dashboard pending count:', data.length);
+      
+      setPendingRequests(data);
+    } catch (e) {
+      console.error('Dashboard error fetching pending requests:', e);
+      setPendingRequests([]);
+    } finally {
+      setPendingLoading(false);
     }
   };
 
@@ -310,7 +357,7 @@ const AdminDashboard = () => {
   }
 
   return (
-    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+    <Container maxWidth="xl" sx={{ py: 4 }}>
       <Grid container spacing={3}>
         {/* Stats Cards */}
         <Grid item xs={12} sm={6} md={3}>
@@ -543,6 +590,20 @@ const AdminDashboard = () => {
             </CardContent>
           </Card>
         </Grid>
+
+        {/* Membership Requests */}
+        <Grid item xs={12} md={8}>
+          <Card>
+            <CardHeader
+              avatar={<GroupIcon color="primary" />}
+              title="Quản lý yêu cầu nâng cấp thành viên"
+            />
+            <CardContent>
+              {/* Membership Requests Panel (full logic/UI from AdminMembershipRequestsPage) */}
+              <MembershipRequestsPanel />
+            </CardContent>
+          </Card>
+        </Grid>
       </Grid>
 
       {/* Revenue Management Menu */}
@@ -621,6 +682,454 @@ const AdminDashboard = () => {
         </Alert>
       </Snackbar>
     </Container>
+  );
+};
+
+// Add the MembershipRequestsPanel component at the top of the file (can be in the same file for now)
+// MembershipRequestsPanel implementation (copy from AdminMembershipRequestsPage, but as a component)
+const MembershipRequestsPanel: React.FC = () => {
+  const [requests, setRequests] = useState<any[]>([]);
+  const [status, setStatus] = useState('pending');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean;
+    type: 'approve' | 'deny' | null;
+    request: any | null;
+  }>({ open: false, type: null, request: null });
+  const [snackbar, setSnackbar] = useState<{
+    open: boolean;
+    message: string;
+    severity: 'success' | 'error' | 'info';
+  }>({ open: false, message: '', severity: 'info' });
+  const [selectedRequest, setSelectedRequest] = useState<any | null>(null);
+  const [detailDialog, setDetailDialog] = useState(false);
+
+  const fetchRequests = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      // Always fetch all requests, filter client-side
+      const url = endpoints.admin.membershipRequests('all');
+      const res = await fetch(url, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+      });
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`Failed to fetch requests: ${res.status} ${res.statusText}`);
+      }
+      const data = await res.json();
+      const validRequests = data.filter((req: any) => req.user_id && req.user_id !== 'undefined' && req.user_id !== 'null');
+      setRequests(validRequests);
+    } catch (err: any) {
+      setError(err.message || 'Failed to fetch requests');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchRequests(); }, [status]);
+
+  const handleAction = async (type: 'approve' | 'deny', request: any) => {
+    setConfirmDialog({ open: true, type, request });
+  };
+
+  const confirmAction = async () => {
+    if (!confirmDialog.request || !confirmDialog.type) return;
+    const { request, type } = confirmDialog;
+    if (!request.request_id || request.request_id === 'undefined' || request.request_id === 'null') {
+      setSnackbar({
+        open: true,
+        message: 'Invalid request ID. Please refresh the page and try again.',
+        severity: 'error'
+      });
+      setConfirmDialog({ open: false, type: null, request: null });
+      return;
+    }
+    setActionLoading(request.request_id);
+    setConfirmDialog({ open: false, type: null, request: null });
+    try {
+      const endpoint = type === 'approve' 
+        ? endpoints.admin.approveMembershipRequest(request.request_id)
+        : endpoints.admin.denyMembershipRequest(request.request_id);
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+      });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.detail || `Failed to ${type} request`);
+      }
+      setSnackbar({
+        open: true,
+        message: `Request ${type}d successfully!`,
+        severity: 'success'
+      });
+      fetchRequests();
+    } catch (err: any) {
+      setSnackbar({
+        open: true,
+        message: err.message || `Failed to ${type} request`,
+        severity: 'error'
+      });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'pending': return 'warning';
+      case 'approved': return 'success';
+      case 'denied': return 'error';
+      default: return 'default';
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'pending': return 'Chờ duyệt';
+      case 'approved': return 'Đã duyệt';
+      case 'denied': return 'Từ chối';
+      default: return status;
+    }
+  };
+
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND'
+    }).format(price);
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleString('vi-VN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const handleViewDetails = (request: any) => {
+    setSelectedRequest(request);
+    setDetailDialog(true);
+  };
+
+  const stats = {
+    pending: requests.filter(r => r.status === 'pending').length,
+    approved: requests.filter(r => r.status === 'approved').length,
+    denied: requests.filter(r => r.status === 'denied').length,
+    total: requests.length
+  };
+
+  return (
+    <Box sx={{ p: 0 }}>
+      {/* Statistics Cards */}
+      <Grid container spacing={2} sx={{ mb: 2 }}>
+        <Grid item xs={6} sm={3}>
+          <Card sx={{ bgcolor: 'warning.light', color: 'warning.contrastText' }}>
+            <CardContent>
+              <Typography variant="h6">{stats.pending}</Typography>
+              <Typography variant="body2">Chờ duyệt</Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={6} sm={3}>
+          <Card sx={{ bgcolor: 'success.light', color: 'success.contrastText' }}>
+            <CardContent>
+              <Typography variant="h6">{stats.approved}</Typography>
+              <Typography variant="body2">Đã duyệt</Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={6} sm={3}>
+          <Card sx={{ bgcolor: 'error.light', color: 'error.contrastText' }}>
+            <CardContent>
+              <Typography variant="h6">{stats.denied}</Typography>
+              <Typography variant="body2">Từ chối</Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={6} sm={3}>
+          <Card sx={{ bgcolor: 'primary.light', color: 'primary.contrastText' }}>
+            <CardContent>
+              <Typography variant="h6">{stats.total}</Typography>
+              <Typography variant="body2">Tổng cộng</Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+      {/* Filter */}
+      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, gap: 2 }}>
+        <FilterIcon color="action" />
+        <Select 
+          value={status} 
+          onChange={e => setStatus(e.target.value)} 
+          size="small"
+          sx={{ minWidth: 120 }}
+        >
+          <MenuItem value="pending">Chờ duyệt</MenuItem>
+          <MenuItem value="approved">Đã duyệt</MenuItem>
+          <MenuItem value="denied">Từ chối</MenuItem>
+        </Select>
+        <Typography variant="body2" color="text.secondary">
+          Hiển thị {requests.length} yêu cầu
+        </Typography>
+        <Button
+          variant="outlined"
+          startIcon={<RefreshIcon />}
+          onClick={fetchRequests}
+          disabled={loading}
+          size="small"
+        >
+          Làm mới
+        </Button>
+      </Box>
+      {loading ? (
+        <Box display="flex" justifyContent="center" my={2}>
+          <CircularProgress size={32} />
+        </Box>
+      ) : error ? (
+        <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>
+      ) : requests.length === 0 ? (
+        <Card>
+          <CardContent sx={{ textAlign: 'center', py: 2 }}>
+            <Typography variant="body2" color="text.secondary">
+              Không có yêu cầu nâng cấp thành viên nào với trạng thái "{getStatusLabel(status)}"
+            </Typography>
+          </CardContent>
+        </Card>
+      ) : (
+        <TableContainer component={Paper} elevation={1} sx={{ mb: 2 }}>
+          <Table size="small">
+            <TableHead>
+              <TableRow sx={{ bgcolor: 'primary.main' }}>
+                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Email</TableCell>
+                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Từ</TableCell>
+                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Đến</TableCell>
+                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Giá</TableCell>
+                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Trạng thái</TableCell>
+                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Ngày tạo</TableCell>
+                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Thao tác</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {requests.filter(r => r.status === status).map(req => (
+                <TableRow key={req.request_id} hover>
+                  <TableCell>{req.email}</TableCell>
+                  <TableCell>
+                    <Chip 
+                      label={req.old_membership?.toUpperCase()} 
+                      size="small" 
+                      variant="outlined"
+                      color="default"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Chip 
+                      label={req.new_membership?.toUpperCase()} 
+                      size="small" 
+                      color="primary"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2" fontWeight="bold" color="primary">
+                      {formatPrice(req.price)}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Chip 
+                      label={getStatusLabel(req.status)}
+                      color={getStatusColor(req.status) as any}
+                      size="small"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2">
+                      {formatDate(req.upgraded_at)}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                      <Tooltip title="Xem chi tiết">
+                        <IconButton 
+                          size="small" 
+                          onClick={() => handleViewDetails(req)}
+                          color="primary"
+                        >
+                          <VisibilityIcon />
+                        </IconButton>
+                      </Tooltip>
+                      {req.status === 'pending' && (
+                        <>
+                          <Tooltip title="Duyệt yêu cầu">
+                            <IconButton
+                              size="small"
+                              color="success"
+                              disabled={actionLoading === req.request_id}
+                              onClick={() => handleAction('approve', req)}
+                            >
+                              <ApproveIcon />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Từ chối yêu cầu">
+                            <IconButton
+                              size="small"
+                              color="error"
+                              disabled={actionLoading === req.request_id}
+                              onClick={() => handleAction('deny', req)}
+                            >
+                              <DenyIcon />
+                            </IconButton>
+                          </Tooltip>
+                        </>
+                      )}
+                    </Box>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
+      {/* Confirmation Dialog */}
+      <Dialog open={confirmDialog.open} onClose={() => setConfirmDialog({ open: false, type: null, request: null })}>
+        <DialogTitle>
+          {confirmDialog.type === 'approve' ? 'Duyệt yêu cầu' : 'Từ chối yêu cầu'}
+        </DialogTitle>
+        <DialogContent>
+          <Typography>
+            Bạn có chắc chắn muốn {confirmDialog.type === 'approve' ? 'duyệt' : 'từ chối'} yêu cầu nâng cấp thành viên của{' '}
+            <strong>{confirmDialog.request?.email}</strong>?
+          </Typography>
+          {confirmDialog.request && (
+            <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+              <Typography variant="body2">
+                <strong>Từ:</strong> {confirmDialog.request.old_membership?.toUpperCase()}
+              </Typography>
+              <Typography variant="body2">
+                <strong>Đến:</strong> {confirmDialog.request.new_membership?.toUpperCase()}
+              </Typography>
+              <Typography variant="body2">
+                <strong>Giá:</strong> {formatPrice(confirmDialog.request.price)}
+              </Typography>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmDialog({ open: false, type: null, request: null })}>
+            Hủy
+          </Button>
+          <Button 
+            onClick={confirmAction}
+            variant="contained"
+            color={confirmDialog.type === 'approve' ? 'success' : 'error'}
+            disabled={actionLoading === confirmDialog.request?._id}
+          >
+            {actionLoading === confirmDialog.request?._id ? (
+              <CircularProgress size={20} />
+            ) : (
+              confirmDialog.type === 'approve' ? 'Duyệt' : 'Từ chối'
+            )}
+          </Button>
+        </DialogActions>
+      </Dialog>
+      {/* Detail Dialog */}
+      <Dialog 
+        open={detailDialog} 
+        onClose={() => setDetailDialog(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          Chi tiết yêu cầu nâng cấp thành viên
+        </DialogTitle>
+        <DialogContent>
+          {selectedRequest && (
+            <Grid container spacing={3}>
+              <Grid item xs={12} md={6}>
+                <Typography variant="h6" gutterBottom>Thông tin người dùng</Typography>
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="body2" color="text.secondary">Email:</Typography>
+                  <Typography variant="body1">{selectedRequest.email}</Typography>
+                </Box>
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="body2" color="text.secondary">ID người dùng:</Typography>
+                  <Typography variant="body1" fontFamily="monospace">{selectedRequest._id}</Typography>
+                </Box>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <Typography variant="h6" gutterBottom>Thông tin nâng cấp</Typography>
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="body2" color="text.secondary">Từ hạng:</Typography>
+                  <Chip label={selectedRequest.old_membership?.toUpperCase()} variant="outlined" />
+                </Box>
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="body2" color="text.secondary">Đến hạng:</Typography>
+                  <Chip label={selectedRequest.new_membership?.toUpperCase()} color="primary" />
+                </Box>
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="body2" color="text.secondary">Giá:</Typography>
+                  <Typography variant="h6" color="primary" fontWeight="bold">
+                    {formatPrice(selectedRequest.price)}
+                  </Typography>
+                </Box>
+              </Grid>
+              <Grid item xs={12}>
+                <Divider sx={{ my: 2 }} />
+                <Typography variant="h6" gutterBottom>Chứng minh thanh toán</Typography>
+                {selectedRequest.payment_proof_url ? (
+                  <Box sx={{ textAlign: 'center' }}>
+                    <img 
+                      src={selectedRequest.payment_proof_url} 
+                      alt="Payment proof" 
+                      style={{ 
+                        maxWidth: '100%', 
+                        maxHeight: '400px', 
+                        objectFit: 'contain',
+                        border: '1px solid #ddd',
+                        borderRadius: '8px'
+                      }} 
+                    />
+                    <Box sx={{ mt: 2 }}>
+                      <Button
+                        variant="outlined"
+                        startIcon={<DownloadIcon />}
+                        onClick={() => window.open(selectedRequest.payment_proof_url, '_blank')}
+                      >
+                        Xem ảnh gốc
+                      </Button>
+                    </Box>
+                  </Box>
+                ) : (
+                  <Typography color="text.secondary">Không có chứng minh thanh toán</Typography>
+                )}
+              </Grid>
+            </Grid>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDetailDialog(false)}>Đóng</Button>
+        </DialogActions>
+      </Dialog>
+      {/* Snackbar */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+      >
+        <Alert 
+          onClose={() => setSnackbar({ ...snackbar, open: false })} 
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+    </Box>
   );
 };
 

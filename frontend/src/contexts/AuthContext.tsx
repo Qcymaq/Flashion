@@ -16,6 +16,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   token: string | null;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -25,6 +26,7 @@ const AuthContext = createContext<AuthContextType>({
   isAuthenticated: false,
   isLoading: true,
   token: null,
+  refreshUser: async () => {},
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -91,6 +93,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     fetchUserProfile(token);
   }, [fetchUserProfile]);
 
+  // Expose refreshUser function
+  const refreshUser = useCallback(async () => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      await fetchUserProfile(token);
+    }
+  }, [fetchUserProfile]);
+
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
@@ -101,7 +111,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [fetchUserProfile]);
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isAuthenticated, isLoading, token }}>
+    <AuthContext.Provider value={{ user, login, logout, isAuthenticated, isLoading, token, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

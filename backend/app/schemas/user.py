@@ -46,6 +46,8 @@ class UserBase(BaseModel):
     shipping_address: Optional[str] = None
     role: str = "user"
     is_active: bool = True
+    membership: str = "free"  # free, gold, diamond
+    try_on_count: int = 0
 
     @validator('role')
     def validate_role(cls, v):
@@ -106,7 +108,9 @@ class User(UserBase):
             address=db_user.address,
             shipping_address=db_user.shipping_address,
             created_at=db_user.created_at,
-            updated_at=db_user.updated_at
+            updated_at=db_user.updated_at,
+            membership=getattr(db_user, 'membership', 'free'),
+            try_on_count=getattr(db_user, 'try_on_count', 0)
         )
 
 class Token(BaseModel):

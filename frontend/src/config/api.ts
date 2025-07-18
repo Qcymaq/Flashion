@@ -6,6 +6,8 @@ export const endpoints = {
     login: `${API_BASE_URL}/auth/login`,
     me: `${API_BASE_URL}/auth/me`,
     updateProfile: `${API_BASE_URL}/auth/update-profile`,
+    upgradeRequest: `${API_BASE_URL}/auth/membership/upgrade-request`,
+    upgradeRequestStatus: `${API_BASE_URL}/auth/membership/upgrade-request/status`,
   },
   products: {
     list: `${API_BASE_URL}/products`,
@@ -54,6 +56,10 @@ export const endpoints = {
     archivedOrders: `${API_BASE_URL}/admin/orders/archived`,
     topProducts: `${API_BASE_URL}/admin/products/top`,
     payments: `${API_BASE_URL}/admin/payments`,
+    membershipRequests: (status?: string) => `${API_BASE_URL}/admin/memberships${status ? `?status=${status}` : ''}`,
+    approveMembershipRequest: (id: string) => `${API_BASE_URL}/admin/memberships/requests/${id}/approve`,
+    denyMembershipRequest: (id: string) => `${API_BASE_URL}/admin/memberships/requests/${id}/deny`,
+    createTestRequest: `${API_BASE_URL}/admin/memberships/requests/test`,
   },
   beautyTips: {
     list: `${API_BASE_URL}/beauty-tips`,

@@ -19,14 +19,24 @@ import {
   ListItem,
   ListItemText,
   ListItemAvatar,
+  Chip,
+  Card,
+  CardContent,
+  Tooltip,
+  Fade,
+  Zoom,
 } from '@mui/material';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import SearchIcon from '@mui/icons-material/Search';
 import PersonIcon from '@mui/icons-material/Person';
+import StarIcon from '@mui/icons-material/Star';
+import DiamondIcon from '@mui/icons-material/Diamond';
+import UpgradeIcon from '@mui/icons-material/Upgrade';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
 import { endpoints } from '../config/api';
+import UpgradeMembershipModal from './UpgradeMembershipModal';
 
 const NavButton = styled(Button)({
   color: '#fff',
@@ -69,15 +79,44 @@ const SearchIconWrapper = styled('div')(({ theme }) => ({
   justifyContent: 'center',
 }));
 
+const UpgradeButton = styled(Button)(({ theme }) => ({
+  background: 'linear-gradient(45deg, #FFD700 30%, #FFA500 90%)',
+  color: '#000',
+  fontWeight: 'bold',
+  borderRadius: '20px',
+  padding: '8px 16px',
+  margin: '0 8px',
+  textTransform: 'none',
+  boxShadow: '0 3px 5px 2px rgba(255, 215, 0, .3)',
+  '&:hover': {
+    background: 'linear-gradient(45deg, #FFA500 30%, #FFD700 90%)',
+    transform: 'translateY(-2px)',
+    boxShadow: '0 5px 10px 2px rgba(255, 215, 0, .4)',
+  },
+  transition: 'all 0.3s ease',
+}));
+
+// Add or update the User interface/type to include membership and try_on_count
+interface User {
+  name: string;
+  email: string;
+  role: string;
+  membership?: string;
+  try_on_count?: number;
+  // ...other fields as needed
+}
+
 const Navbar = () => {
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user: rawUser, logout } = useAuth();
+  const user = rawUser as User;
   const { cart } = useCart();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
 
   // Calculate total items in cart
   const cartItemCount = cart?.items?.reduce((total, item) => total + item.quantity, 0) || 0;
@@ -132,6 +171,43 @@ const Navbar = () => {
     navigate(`/studio/${productId}`);
   };
 
+  const getMembershipIcon = (membership?: string) => {
+    switch (membership) {
+      case 'gold':
+        return <StarIcon sx={{ color: '#FFD700', fontSize: 16 }} />;
+      case 'diamond':
+        return <DiamondIcon sx={{ color: '#B9F2FF', fontSize: 16 }} />;
+      default:
+        return null;
+    }
+  };
+
+  const getMembershipLabel = (membership?: string) => {
+    switch (membership) {
+      case 'gold':
+        return 'Gold';
+      case 'diamond':
+        return 'Diamond';
+      default:
+        return 'Free';
+    }
+  };
+
+  const getMembershipColor = (membership?: string) => {
+    switch (membership) {
+      case 'gold':
+        return '#FFD700';
+      case 'diamond':
+        return '#B9F2FF';
+      default:
+        return '#666';
+    }
+  };
+
+  const shouldShowUpgradeButton = () => {
+    return user && user.role !== 'admin' && user.membership !== 'diamond';
+  };
+
   return (
     <AppBar position="sticky" sx={{ backgroundColor: '#000' }}>
       <Toolbar sx={{ justifyContent: 'space-between' }}>
@@ -169,6 +245,20 @@ const Navbar = () => {
           <IconButton color="inherit" onClick={handleSearchClick}>
             <SearchIcon />
           </IconButton>
+          
+          {/* Upgrade Membership Button - More Prominent */}
+          {shouldShowUpgradeButton() && (
+            <Tooltip title="Nâng cấp thành viên để có thêm quyền lợi" arrow>
+              <UpgradeButton
+                onClick={() => setUpgradeOpen(true)}
+                startIcon={<UpgradeIcon />}
+                sx={{ display: { xs: 'none', md: 'flex' } }}
+              >
+                Nâng cấp {user?.membership === 'gold' ? 'lên Diamond' : 'thành viên'}
+              </UpgradeButton>
+            </Tooltip>
+          )}
+
           {user ? (
             <>
               <Box
@@ -177,6 +267,11 @@ const Navbar = () => {
                   alignItems: 'center',
                   cursor: 'pointer',
                   ml: 1,
+                  p: 1,
+                  borderRadius: 2,
+                  '&:hover': {
+                    bgcolor: 'rgba(255, 255, 255, 0.1)',
+                  },
                 }}
                 onClick={handleMenu}
               >
@@ -190,48 +285,117 @@ const Navbar = () => {
                 >
                   {user.name.charAt(0).toUpperCase()}
                 </Avatar>
-                <Typography
-                  variant="body1"
-                  sx={{
-                    color: 'white',
-                    ml: 1,
-                    display: { xs: 'none', sm: 'block' },
-                  }}
-                >
-                  {user.name}
-                </Typography>
+                <Box sx={{ ml: 1, display: { xs: 'none', sm: 'block' } }}>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: 'white',
+                      fontWeight: 'bold',
+                      lineHeight: 1,
+                    }}
+                  >
+                    {user.name}
+                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    {getMembershipIcon(user.membership)}
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        color: getMembershipColor(user.membership),
+                        fontWeight: 'bold',
+                        fontSize: '0.7rem',
+                      }}
+                    >
+                      {getMembershipLabel(user.membership)}
+                    </Typography>
+                  </Box>
+                </Box>
               </Box>
               <Menu
                 anchorEl={anchorEl}
                 open={Boolean(anchorEl)}
                 onClose={handleClose}
                 PaperProps={{
-                  sx: { width: 250, maxWidth: '100%' },
+                  sx: { 
+                    width: 280, 
+                    maxWidth: '100%',
+                    mt: 1,
+                    borderRadius: 2,
+                  },
                 }}
+                TransitionComponent={Zoom}
               >
-                <Box sx={{ px: 2, py: 1 }}>
-                  <Typography variant="subtitle1" fontWeight="bold">
-                    {user.name}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {user.email}
-                  </Typography>
-                </Box>
+                {/* User Info Card */}
+                <Card sx={{ m: 1, bgcolor: 'grey.50' }}>
+                  <CardContent sx={{ pb: '8px !important' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                      <Avatar sx={{ width: 48, height: 48, bgcolor: 'primary.main' }}>
+                        {user.name.charAt(0).toUpperCase()}
+                      </Avatar>
+                      <Box>
+                        <Typography variant="subtitle1" fontWeight="bold">
+                          {user.name}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {user.email}
+                        </Typography>
+                      </Box>
+                    </Box>
+                    
+                    {/* Membership Status */}
+                                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                     {user.role === 'admin' ? (
+                       <Chip 
+                         label="ADMIN"
+                         size="small"
+                         color="error"
+                         variant="outlined"
+                       />
+                     ) : (
+                       <>
+                         {getMembershipIcon(user.membership)}
+                         <Chip 
+                           label={`Hạng ${getMembershipLabel(user.membership)}`}
+                           size="small"
+                           color={user.membership === 'diamond' ? 'secondary' : user.membership === 'gold' ? 'warning' : 'default'}
+                           variant="outlined"
+                         />
+                       </>
+                     )}
+                   </Box>
+                   
+                   {/* Try-on Count */}
+                   {user.role !== 'admin' && typeof user.try_on_count === 'number' && (
+                     <Typography variant="caption" color="text.secondary">
+                       Đã thử: {user.try_on_count} / {user.membership === 'gold' ? 50 : user.membership === 'diamond' ? '∞' : 10}
+                     </Typography>
+                   )}
+                  </CardContent>
+                </Card>
+
                 <Divider />
+
+                {/* Menu Items */}
                 <MenuItem onClick={() => { navigate('/profile'); handleClose(); }}>
-                  Profile
+                  <Typography>Hồ sơ cá nhân</Typography>
                 </MenuItem>
+                
                 <MenuItem onClick={() => { navigate('/orders'); handleClose(); }}>
-                  My Orders
+                  <Typography>Đơn hàng của tôi</Typography>
                 </MenuItem>
+
+
+
                 {user.role === 'admin' && (
                   <MenuItem onClick={() => { navigate('/admin'); handleClose(); }}>
-                    Admin Dashboard
+                    <Typography>Bảng điều khiển quản trị</Typography>
                   </MenuItem>
                 )}
+                
                 <Divider />
+                
                 <MenuItem onClick={handleLogout}>
-                  Logout
+                  <Typography>Đăng xuất</Typography>
                 </MenuItem>
               </Menu>
             </>
@@ -304,6 +468,8 @@ const Navbar = () => {
           </List>
         </DialogContent>
       </Dialog>
+      
+      <UpgradeMembershipModal open={upgradeOpen} onClose={() => setUpgradeOpen(false)} user={user} />
     </AppBar>
   );
 };

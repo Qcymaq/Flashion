@@ -24,6 +24,7 @@ import {
   Home as HomeIcon,
   Archive as ArchiveIcon,
   Article as ArticleIcon,
+  Upgrade as UpgradeIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 

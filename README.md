@@ -32,15 +32,7 @@ Flashion is a full-stack e-commerce platform with a virtual makeup try-on featur
 
 ### Backend Setup
 
-1. **Create and activate a virtual environment:**
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
 
-2. **Install dependencies:**
-   ```bash
-   pip install -r requirements.txt
    # or use conda:
    conda env create -f environment.yml
    ```

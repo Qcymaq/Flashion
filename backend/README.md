@@ -3,16 +3,6 @@
 This is the FastAPI backend for the Flashion e-commerce application.
 
 ## Setup
-
-1. Create a virtual environment:
-```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
-
-2. Install dependencies:
-```bash
-pip install -r requirements.txt
 ```
 
 3. Create a `.env` file in the backend directory with the following variables:

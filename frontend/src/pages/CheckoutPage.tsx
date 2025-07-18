@@ -335,13 +335,13 @@ const CheckoutPage = () => {
                             Ngân hàng: Vietcombank
                           </Typography>
                           <Typography variant="body2" color="text.secondary">
-                            Số tài khoản: 1234567890
+                            Số tài khoản: 0631000524772
                           </Typography>
                           <Typography variant="body2" color="text.secondary">
-                            Chủ tài khoản: CÔNG TY TNHH FLASHION
+                            Chủ tài khoản: PHAM DANG KHOI
                           </Typography>
                           <Typography variant="body2" color="text.secondary">
-                            Nội dung chuyển khoản: [Mã đơn hàng]
+                            Nội dung chuyển khoản: Email Flashion (Xuất hiện ở thông tin cá nhân) + Số điện thoại
                           </Typography>
                         </Box>
                       </PaymentMethodButton>

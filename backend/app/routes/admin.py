@@ -1,5 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from typing import List
+from fastapi import APIRouter, Depends, HTTPException, status, Query
+from typing import List, Optional
 from datetime import datetime
 from bson import ObjectId
 from pydantic import BaseModel
@@ -174,6 +174,158 @@ async def get_user(
         return User.from_db(UserInDB(**user))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/users/memberships", response_model=List[User])
+async def get_users_memberships(
+    membership: str = None,
+    current_user: User = Depends(get_current_admin_user),
+    skip: int = 0,
+    limit: int = 100
+):
+    db = get_database()
+    query = {}
+    if membership:
+        query["membership"] = membership
+    users = await db.users.find(query).skip(skip).limit(limit).to_list(length=limit)
+    return [User.from_db(UserInDB(**user)) for user in users]
+
+class MembershipUpgradeLog(BaseModel):
+    _id: str           # User's ID
+    request_id: str    # Request's unique ID
+    email: str
+    old_membership: str
+    new_membership: str
+    price: int
+    upgraded_at: datetime
+    status: str = "pending"
+    payment_proof_url: Optional[str] = None
+
+    @classmethod
+    def from_db(cls, db_obj):
+        return cls(
+            _id=str(db_obj["user_id"]),                # User's ID as _id
+            request_id=str(db_obj["_id"]),             # Request's ID as request_id
+            email=db_obj["email"],
+            old_membership=db_obj["old_membership"],
+            new_membership=db_obj["new_membership"],
+            price=db_obj["price"],
+            upgraded_at=db_obj["upgraded_at"],
+            status=db_obj.get("status", "pending"),
+            payment_proof_url=db_obj.get("payment_proof_url")
+        )
+
+# Simulate a collection for membership upgrades (in production, use a real collection)
+# membership_upgrade_logs = []  # Removed unused in-memory list
+
+@router.get("/memberships/upgrades", response_model=List[MembershipUpgradeLog])
+async def get_membership_upgrades(current_user: User = Depends(get_current_admin_user)):
+    db = get_database()
+    logs = await db.membership_upgrades.find().sort("upgraded_at", -1).to_list(length=1000)
+    
+    # Convert all ObjectId fields to strings and ensure all fields are properly formatted
+    formatted_logs = []
+    for log in logs:
+        formatted_log = {}
+        for key, value in log.items():
+            if key == "_id" or key == "user_id":
+                formatted_log[key] = str(value)
+            elif isinstance(value, datetime):
+                formatted_log[key] = value.isoformat()
+            else:
+                formatted_log[key] = value
+        formatted_logs.append(formatted_log)
+    
+    return formatted_logs
+
+@router.get("/memberships", response_model=List[MembershipUpgradeLog])
+async def get_memberships(
+    status: str = Query(None, description="Filter by status: pending, approved, denied, or all"),
+    current_user: User = Depends(get_current_admin_user)
+):
+    db = get_database()
+    query = {}
+    if status and status != 'all':
+        query["status"] = status
+    logs = await db.membership_upgrades.find(query).sort("upgraded_at", -1).to_list(length=1000)
+    return [MembershipUpgradeLog.from_db(log) for log in logs]
+
+@router.post("/memberships/requests/{request_id}/approve")
+async def approve_membership_request(request_id: str, current_user: User = Depends(get_current_admin_user)):
+    db = get_database()
+    from bson import ObjectId
+    
+    # Validate request_id
+    if not request_id or request_id == "undefined" or request_id == "null":
+        raise HTTPException(status_code=400, detail="Invalid request ID")
+    
+    try:
+        object_id = ObjectId(request_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid request ID format")
+    
+    req = await db.membership_upgrades.find_one({"_id": object_id})
+    if not req or req["status"] != "pending":
+        raise HTTPException(status_code=404, detail="Pending request not found")
+    # Upgrade user membership
+    await db.users.update_one({"_id": ObjectId(req["user_id"])} , {"$set": {"membership": req["new_membership"], "updated_at": datetime.utcnow()}})
+    # Update request status
+    await db.membership_upgrades.update_one({"_id": object_id}, {"$set": {"status": "approved", "transaction_id": str(ObjectId()), "upgraded_at": datetime.utcnow()}})
+    return {"message": "Membership upgrade approved and user updated."}
+
+@router.post("/memberships/requests/{request_id}/deny")
+async def deny_membership_request(request_id: str, current_user: User = Depends(get_current_admin_user)):
+    db = get_database()
+    from bson import ObjectId
+    
+    # Validate request_id
+    if not request_id or request_id == "undefined" or request_id == "null":
+        raise HTTPException(status_code=400, detail="Invalid request ID")
+    
+    try:
+        object_id = ObjectId(request_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid request ID format")
+    
+    req = await db.membership_upgrades.find_one({"_id": object_id})
+    if not req or req["status"] != "pending":
+        raise HTTPException(status_code=404, detail="Pending request not found")
+    await db.membership_upgrades.update_one({"_id": object_id}, {"$set": {"status": "denied", "upgraded_at": datetime.utcnow()}})
+    return {"message": "Membership upgrade request denied."}
+
+@router.post("/memberships/requests/test")
+async def create_test_membership_request(current_user: User = Depends(get_current_admin_user)):
+    """Create a test membership request for debugging purposes"""
+    db = get_database()
+    
+    test_request = {
+        "user_id": str(current_user.id),
+        "email": current_user.email,
+        "old_membership": "free",
+        "new_membership": "gold",
+        "price": 49000,
+        "upgraded_at": datetime.utcnow(),
+        "status": "pending",
+        "payment_proof_url": None
+    }
+    
+    result = await db.membership_upgrades.insert_one(test_request)
+    print(f"Created test membership request with ID: {result.inserted_id}")
+    
+    # Return the created request with proper formatting
+    created_request = await db.membership_upgrades.find_one({"_id": result.inserted_id})
+    if created_request:
+        formatted_request = {}
+        for key, value in created_request.items():
+            if key == "_id" or key == "user_id":
+                formatted_request[key] = str(value)
+            elif isinstance(value, datetime):
+                formatted_request[key] = value.isoformat()
+            else:
+                formatted_request[key] = value
+        
+        return {"message": "Test membership request created", "request": formatted_request}
+    
+    return {"message": "Test membership request created", "id": str(result.inserted_id)}
 
 @router.get("/stats", response_model=DashboardStats)
 async def get_dashboard_stats(current_user: User = Depends(get_current_admin_user)):
