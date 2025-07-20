@@ -1,12 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Body
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 from bson import ObjectId
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from app.schemas.product import Product, ProductCreate
 from app.schemas.user import User, UserInDB
 from app.utils.database import get_database
-from app.utils.auth import get_current_admin_user
+from app.utils.auth import get_current_admin_user, get_password_hash
+from app.routes.auth import password_reset_tokens, send_password_reset_email, send_password_reset_sms, password_reset_requests
 from ..models.user import User as MongoUser
 from ..models.order import Order
 from ..schemas.admin import (
@@ -17,9 +18,30 @@ from ..schemas.admin import (
     PaymentStatusUpdate,
     PaymentUser
 )
+import logging
+import secrets
 
 class ResetRevenueRequest(BaseModel):
     reason: str
+
+class PasswordResetRequest(BaseModel):
+    request_id: str
+    user_id: str
+    user_email: Optional[str]
+    user_phone: Optional[str]
+    user_name: Optional[str]
+    requested_at: datetime
+    expires_at: datetime
+    status: str  # pending, completed, expired
+    reset_method: str  # email, phone
+    completed_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+    @classmethod
+    def from_dict(cls, data: dict):
+        return cls(**data)
 
 router = APIRouter(tags=["admin"])
 
@@ -189,9 +211,115 @@ async def get_users_memberships(
     users = await db.users.find(query).skip(skip).limit(limit).to_list(length=limit)
     return [User.from_db(UserInDB(**user)) for user in users]
 
+@router.patch("/users/{user_id}/membership")
+async def update_user_membership(user_id: str, membership: str = Body(..., embed=True), current_user: User = Depends(get_current_admin_user)):
+    db = get_database()
+    if membership not in ["free", "gold", "diamond"]:
+        raise HTTPException(status_code=400, detail="Invalid membership tier.")
+    if not ObjectId.is_valid(user_id):
+        raise HTTPException(status_code=400, detail="Invalid user ID")
+    result = await db.users.update_one({"_id": ObjectId(user_id)}, {"$set": {"membership": membership, "updated_at": datetime.utcnow()}})
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="User not found")
+    return {"message": "Membership updated successfully"}
+
+@router.post("/users", response_model=User)
+async def create_user(
+    user_data: dict = Body(...),
+    current_user: User = Depends(get_current_admin_user)
+):
+    db = get_database()
+    
+    # Check if email already exists
+    existing_user = await db.users.find_one({"email": user_data["email"]})
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    
+    # Hash password if provided
+    if "password" in user_data and user_data["password"]:
+        user_data["hashed_password"] = get_password_hash(user_data["password"])
+        del user_data["password"]
+    
+    # Set default values
+    user_data["created_at"] = datetime.utcnow()
+    user_data["updated_at"] = datetime.utcnow()
+    user_data["is_active"] = user_data.get("is_active", True)
+    user_data["role"] = user_data.get("role", "user")
+    user_data["membership"] = user_data.get("membership", "free")
+    
+    result = await db.users.insert_one(user_data)
+    created_user = await db.users.find_one({"_id": result.inserted_id})
+    
+    return User.from_db(UserInDB(**created_user))
+
+@router.put("/users/{user_id}", response_model=User)
+async def update_user(
+    user_id: str,
+    user_data: dict = Body(...),
+    current_user: User = Depends(get_current_admin_user)
+):
+    db = get_database()
+    
+    if not ObjectId.is_valid(user_id):
+        raise HTTPException(status_code=400, detail="Invalid user ID")
+    
+    # Don't allow updating the current user's role to non-admin
+    if str(current_user.id) == user_id and user_data.get("role") != "admin":
+        raise HTTPException(status_code=400, detail="Cannot change your own role")
+    
+    # Check if email already exists (if email is being updated)
+    if "email" in user_data:
+        existing_user = await db.users.find_one({"email": user_data["email"], "_id": {"$ne": ObjectId(user_id)}})
+        if existing_user:
+            raise HTTPException(status_code=400, detail="Email already registered")
+    
+    # Hash password if provided
+    if "password" in user_data and user_data["password"]:
+        user_data["hashed_password"] = get_password_hash(user_data["password"])
+        del user_data["password"]
+    
+    # Update timestamp
+    user_data["updated_at"] = datetime.utcnow()
+    
+    result = await db.users.update_one(
+        {"_id": ObjectId(user_id)},
+        {"$set": user_data}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    updated_user = await db.users.find_one({"_id": ObjectId(user_id)})
+    return User.from_db(UserInDB(**updated_user))
+
+@router.put("/users/{user_id}/status")
+async def update_user_status(
+    user_id: str,
+    status_data: dict = Body(...),
+    current_user: User = Depends(get_current_admin_user)
+):
+    db = get_database()
+    
+    if not ObjectId.is_valid(user_id):
+        raise HTTPException(status_code=400, detail="Invalid user ID")
+    
+    # Don't allow deactivating your own account
+    if str(current_user.id) == user_id and not status_data.get("is_active", True):
+        raise HTTPException(status_code=400, detail="Cannot deactivate your own account")
+    
+    result = await db.users.update_one(
+        {"_id": ObjectId(user_id)},
+        {"$set": {"is_active": status_data.get("is_active", True), "updated_at": datetime.utcnow()}}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    return {"message": "User status updated successfully"}
+
 class MembershipUpgradeLog(BaseModel):
-    _id: str           # User's ID
-    request_id: str    # Request's unique ID
+    _id: str
+    user_id: str
     email: str
     old_membership: str
     new_membership: str
@@ -200,16 +328,19 @@ class MembershipUpgradeLog(BaseModel):
     status: str = "pending"
     payment_proof_url: Optional[str] = None
 
+    class Config:
+        from_attributes = True
+
     @classmethod
     def from_db(cls, db_obj):
         return cls(
-            _id=str(db_obj["user_id"]),                # User's ID as _id
-            request_id=str(db_obj["_id"]),             # Request's ID as request_id
-            email=db_obj["email"],
-            old_membership=db_obj["old_membership"],
-            new_membership=db_obj["new_membership"],
-            price=db_obj["price"],
-            upgraded_at=db_obj["upgraded_at"],
+            _id=str(db_obj.get("_id")),
+            user_id=str(db_obj.get("user_id")),
+            email=db_obj.get("email", ""),
+            old_membership=db_obj.get("old_membership", ""),
+            new_membership=db_obj.get("new_membership", ""),
+            price=db_obj.get("price", 0),
+            upgraded_at=db_obj.get("upgraded_at"),
             status=db_obj.get("status", "pending"),
             payment_proof_url=db_obj.get("payment_proof_url")
         )
@@ -217,25 +348,8 @@ class MembershipUpgradeLog(BaseModel):
 # Simulate a collection for membership upgrades (in production, use a real collection)
 # membership_upgrade_logs = []  # Removed unused in-memory list
 
-@router.get("/memberships/upgrades", response_model=List[MembershipUpgradeLog])
-async def get_membership_upgrades(current_user: User = Depends(get_current_admin_user)):
-    db = get_database()
-    logs = await db.membership_upgrades.find().sort("upgraded_at", -1).to_list(length=1000)
-    
-    # Convert all ObjectId fields to strings and ensure all fields are properly formatted
-    formatted_logs = []
-    for log in logs:
-        formatted_log = {}
-        for key, value in log.items():
-            if key == "_id" or key == "user_id":
-                formatted_log[key] = str(value)
-            elif isinstance(value, datetime):
-                formatted_log[key] = value.isoformat()
-            else:
-                formatted_log[key] = value
-        formatted_logs.append(formatted_log)
-    
-    return formatted_logs
+# Remove /memberships/upgrades endpoint and manual formatting
+# Only keep /memberships endpoint for fetching membership upgrade requests
 
 @router.get("/memberships", response_model=List[MembershipUpgradeLog])
 async def get_memberships(
@@ -248,84 +362,6 @@ async def get_memberships(
         query["status"] = status
     logs = await db.membership_upgrades.find(query).sort("upgraded_at", -1).to_list(length=1000)
     return [MembershipUpgradeLog.from_db(log) for log in logs]
-
-@router.post("/memberships/requests/{request_id}/approve")
-async def approve_membership_request(request_id: str, current_user: User = Depends(get_current_admin_user)):
-    db = get_database()
-    from bson import ObjectId
-    
-    # Validate request_id
-    if not request_id or request_id == "undefined" or request_id == "null":
-        raise HTTPException(status_code=400, detail="Invalid request ID")
-    
-    try:
-        object_id = ObjectId(request_id)
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid request ID format")
-    
-    req = await db.membership_upgrades.find_one({"_id": object_id})
-    if not req or req["status"] != "pending":
-        raise HTTPException(status_code=404, detail="Pending request not found")
-    # Upgrade user membership
-    await db.users.update_one({"_id": ObjectId(req["user_id"])} , {"$set": {"membership": req["new_membership"], "updated_at": datetime.utcnow()}})
-    # Update request status
-    await db.membership_upgrades.update_one({"_id": object_id}, {"$set": {"status": "approved", "transaction_id": str(ObjectId()), "upgraded_at": datetime.utcnow()}})
-    return {"message": "Membership upgrade approved and user updated."}
-
-@router.post("/memberships/requests/{request_id}/deny")
-async def deny_membership_request(request_id: str, current_user: User = Depends(get_current_admin_user)):
-    db = get_database()
-    from bson import ObjectId
-    
-    # Validate request_id
-    if not request_id or request_id == "undefined" or request_id == "null":
-        raise HTTPException(status_code=400, detail="Invalid request ID")
-    
-    try:
-        object_id = ObjectId(request_id)
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid request ID format")
-    
-    req = await db.membership_upgrades.find_one({"_id": object_id})
-    if not req or req["status"] != "pending":
-        raise HTTPException(status_code=404, detail="Pending request not found")
-    await db.membership_upgrades.update_one({"_id": object_id}, {"$set": {"status": "denied", "upgraded_at": datetime.utcnow()}})
-    return {"message": "Membership upgrade request denied."}
-
-@router.post("/memberships/requests/test")
-async def create_test_membership_request(current_user: User = Depends(get_current_admin_user)):
-    """Create a test membership request for debugging purposes"""
-    db = get_database()
-    
-    test_request = {
-        "user_id": str(current_user.id),
-        "email": current_user.email,
-        "old_membership": "free",
-        "new_membership": "gold",
-        "price": 49000,
-        "upgraded_at": datetime.utcnow(),
-        "status": "pending",
-        "payment_proof_url": None
-    }
-    
-    result = await db.membership_upgrades.insert_one(test_request)
-    print(f"Created test membership request with ID: {result.inserted_id}")
-    
-    # Return the created request with proper formatting
-    created_request = await db.membership_upgrades.find_one({"_id": result.inserted_id})
-    if created_request:
-        formatted_request = {}
-        for key, value in created_request.items():
-            if key == "_id" or key == "user_id":
-                formatted_request[key] = str(value)
-            elif isinstance(value, datetime):
-                formatted_request[key] = value.isoformat()
-            else:
-                formatted_request[key] = value
-        
-        return {"message": "Test membership request created", "request": formatted_request}
-    
-    return {"message": "Test membership request created", "id": str(result.inserted_id)}
 
 @router.get("/stats", response_model=DashboardStats)
 async def get_dashboard_stats(current_user: User = Depends(get_current_admin_user)):
@@ -636,5 +672,279 @@ async def get_archived_orders(current_user: User = Depends(get_current_admin_use
             formatted_orders.append(formatted_order)
         
         return formatted_orders
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) 
+
+@router.post("/users/{user_id}/reset-password")
+async def admin_reset_user_password(
+    user_id: str,
+    request: dict = Body(...),
+    current_user: User = Depends(get_current_admin_user)
+):
+    """Admin endpoint to reset user password"""
+    db = get_database()
+    
+    if not ObjectId.is_valid(user_id):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid user ID"
+        )
+    
+    new_password = request.get("new_password")
+    if not new_password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="New password is required"
+        )
+    
+    # Don't allow admin to reset their own password through this endpoint
+    if str(current_user.id) == user_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Use the regular password reset for your own account"
+        )
+    
+    # Find user
+    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    # Update password
+    hashed_password = get_password_hash(new_password)
+    result = await db.users.update_one(
+        {"_id": ObjectId(user_id)},
+        {"$set": {"hashed_password": hashed_password, "updated_at": datetime.utcnow()}}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update password"
+        )
+    
+    # Log the password reset action
+    logging.info(f"Admin {current_user.email} reset password for user {user.get('email')} (ID: {user_id})")
+    
+    return {"message": "User password has been reset successfully"}
+
+@router.post("/users/{user_id}/send-reset-link")
+async def admin_send_reset_link(
+    user_id: str,
+    current_user: User = Depends(get_current_admin_user)
+):
+    """Admin endpoint to send password reset link to user"""
+    db = get_database()
+    
+    if not ObjectId.is_valid(user_id):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid user ID"
+        )
+    
+    # Find user
+    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    # Generate reset token
+    reset_token = secrets.token_urlsafe(32)
+    expires_at = datetime.utcnow() + timedelta(hours=1)
+    
+    # Store reset token
+    password_reset_tokens[reset_token] = {
+        "user_id": str(user["_id"]),
+        "email": user.get("email"),
+        "phone": user.get("phone"),
+        "expires_at": expires_at,
+        "admin_initiated": True,
+        "admin_email": current_user.email
+    }
+    
+    # Send reset email or SMS
+    success = False
+    if user.get("email"):
+        success = send_password_reset_email(user["email"], reset_token, user.get("name"))
+    elif user.get("phone"):
+        success = send_password_reset_sms(user["phone"], reset_token)
+    
+    if success:
+        logging.info(f"Admin {current_user.email} sent reset link to user {user.get('email')} (ID: {user_id})")
+        return {"message": "Password reset link has been sent to the user."}
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to send password reset link"
+        )
+
+@router.get("/password-reset-requests", response_model=List[PasswordResetRequest])
+async def get_password_reset_requests(
+    status: str = Query(None, description="Filter by status: pending, completed, expired, or all"),
+    current_user: User = Depends(get_current_admin_user)
+):
+    """Get all password reset requests for admin visibility"""
+    try:
+        requests_list = []
+        
+        for request_id, request_data in password_reset_requests.items():
+            # Filter by status if specified
+            if status and status != "all" and request_data.get("status") != status:
+                continue
+                
+            # Check if expired
+            if request_data.get("status") == "pending" and datetime.utcnow() > request_data.get("expires_at"):
+                request_data["status"] = "expired"
+            
+            requests_list.append(PasswordResetRequest.from_dict(request_data))
+        
+        # Sort by requested_at (newest first)
+        requests_list.sort(key=lambda x: x.requested_at, reverse=True)
+        
+        return requests_list
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/password-reset-requests/{request_id}", response_model=PasswordResetRequest)
+async def get_password_reset_request(
+    request_id: str,
+    current_user: User = Depends(get_current_admin_user)
+):
+    """Get specific password reset request details"""
+    try:
+        if request_id not in password_reset_requests:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Password reset request not found"
+            )
+        
+        request_data = password_reset_requests[request_id]
+        
+        # Check if expired
+        if request_data.get("status") == "pending" and datetime.utcnow() > request_data.get("expires_at"):
+            request_data["status"] = "expired"
+        
+        return PasswordResetRequest.from_dict(request_data)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.delete("/password-reset-requests/{request_id}")
+async def revoke_password_reset_request(
+    request_id: str,
+    current_user: User = Depends(get_current_admin_user)
+):
+    """Revoke a password reset request (admin only)"""
+    try:
+        if request_id not in password_reset_requests:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Password reset request not found"
+            )
+        
+        request_data = password_reset_requests[request_id]
+        
+        # Remove the token if it exists
+        token = request_data.get("token")
+        if token and token in password_reset_tokens:
+            password_reset_tokens.pop(token, None)
+        
+        # Remove the request
+        password_reset_requests.pop(request_id, None)
+        
+        logging.info(f"Admin {current_user.email} revoked password reset request {request_id} for user {request_data.get('user_email')}")
+        
+        return {"message": "Password reset request has been revoked"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.put("/password-reset-requests/{request_id}/complete")
+async def mark_password_reset_completed(
+    request_id: str,
+    current_user: User = Depends(get_current_admin_user)
+):
+    """Mark a password reset request as completed"""
+    try:
+        if request_id not in password_reset_requests:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Password reset request not found"
+            )
+        
+        request_data = password_reset_requests[request_id]
+        if request_data.get("status") != "pending":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Can only mark pending requests as completed"
+            )
+        
+        # Update the request status
+        request_data["status"] = "completed"
+        request_data["completed_at"] = datetime.utcnow()
+        
+        logging.info(f"Admin {current_user.email} marked password reset request {request_id} as completed for user {request_data.get('user_email')}")
+        
+        return {"message": "Password reset request marked as completed"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.delete("/password-reset-requests/{request_id}/delete")
+async def delete_password_reset_request(
+    request_id: str,
+    current_user: User = Depends(get_current_admin_user)
+):
+    """Delete a password reset request (any status)"""
+    try:
+        if request_id not in password_reset_requests:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Password reset request not found"
+            )
+        
+        request_data = password_reset_requests[request_id]
+        
+        # Remove the request
+        password_reset_requests.pop(request_id, None)
+        
+        # Also remove the associated token if it exists
+        token = request_data.get("token")
+        if token and token in password_reset_tokens:
+            password_reset_tokens.pop(token, None)
+        
+        logging.info(f"Admin {current_user.email} deleted password reset request {request_id} for user {request_data.get('user_email')}")
+        
+        return {"message": "Password reset request deleted successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/password-reset-stats")
+async def get_password_reset_stats(current_user: User = Depends(get_current_admin_user)):
+    """Get password reset statistics for admin dashboard"""
+    try:
+        total_requests = len(password_reset_requests)
+        pending_requests = len([r for r in password_reset_requests.values() if r.get("status") == "pending"])
+        completed_requests = len([r for r in password_reset_requests.values() if r.get("status") == "completed"])
+        expired_requests = len([r for r in password_reset_requests.values() if r.get("status") == "expired"])
+        
+        # Count by method
+        email_requests = len([r for r in password_reset_requests.values() if r.get("reset_method") == "email"])
+        phone_requests = len([r for r in password_reset_requests.values() if r.get("reset_method") == "phone"])
+        
+        # Recent activity (last 24 hours)
+        yesterday = datetime.utcnow() - timedelta(days=1)
+        recent_requests = len([r for r in password_reset_requests.values() if r.get("requested_at") > yesterday])
+        
+        return {
+            "total_requests": total_requests,
+            "pending_requests": pending_requests,
+            "completed_requests": completed_requests,
+            "expired_requests": expired_requests,
+            "email_requests": email_requests,
+            "phone_requests": phone_requests,
+            "recent_requests_24h": recent_requests
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) 

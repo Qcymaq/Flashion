@@ -47,8 +47,11 @@ async def add_to_cart(
         raise HTTPException(status_code=404, detail="Product not found")
     
     # Check if product has the selected color and size
-    if item.color and item.color not in product.get("colors", []):
-        raise HTTPException(status_code=400, detail="Selected color not available")
+    product_colors = product.get("colors", [])
+    if product_colors:  # Only check if colors are defined
+        if item.color and item.color not in product_colors:
+            raise HTTPException(status_code=400, detail="Selected color not available")
+    # If product_colors is empty or not defined, allow any color (or even None)
     
     # Get or create cart
     cart = await db.carts.find_one({"user_id": ObjectId(current_user.id)})

@@ -82,7 +82,7 @@ const ProductList: React.FC = () => {
     }
 
     try {
-      await addToCart(product._id, 1);
+      await addToCart(product._id, 1, undefined, undefined);
       setSnackbar({
         open: true,
         message: 'Đã thêm sản phẩm vào giỏ hàng',

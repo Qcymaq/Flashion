@@ -25,6 +25,7 @@ import {
   Tooltip,
   Fade,
   Zoom,
+  ListItemIcon,
 } from '@mui/material';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
@@ -37,6 +38,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
 import { endpoints } from '../config/api';
 import UpgradeMembershipModal from './UpgradeMembershipModal';
+import AdminPanelSettings from '@mui/icons-material/AdminPanelSettings';
+import ExitToApp from '@mui/icons-material/ExitToApp';
 
 const NavButton = styled(Button)({
   color: '#fff',
@@ -185,11 +188,11 @@ const Navbar = () => {
   const getMembershipLabel = (membership?: string) => {
     switch (membership) {
       case 'gold':
-        return 'Gold';
+        return 'Vàng';
       case 'diamond':
-        return 'Diamond';
+        return 'Kim cương';
       default:
-        return 'Free';
+        return 'Miễn phí';
     }
   };
 
@@ -254,7 +257,7 @@ const Navbar = () => {
                 startIcon={<UpgradeIcon />}
                 sx={{ display: { xs: 'none', md: 'flex' } }}
               >
-                Nâng cấp {user?.membership === 'gold' ? 'lên Diamond' : 'thành viên'}
+                Nâng cấp {user?.membership === 'gold' ? 'lên Kim cương' : 'thành viên'}
               </UpgradeButton>
             </Tooltip>
           )}
@@ -384,17 +387,30 @@ const Navbar = () => {
                   <Typography>Đơn hàng của tôi</Typography>
                 </MenuItem>
 
-
+                {shouldShowUpgradeButton() && (
+                  <MenuItem onClick={() => { setUpgradeOpen(true); handleClose(); }}>
+                    <ListItemIcon>
+                      <StarIcon fontSize="small" />
+                    </ListItemIcon>
+                    <Typography>Nâng cấp thành viên</Typography>
+                  </MenuItem>
+                )}
 
                 {user.role === 'admin' && (
                   <MenuItem onClick={() => { navigate('/admin'); handleClose(); }}>
-                    <Typography>Bảng điều khiển quản trị</Typography>
+                    <ListItemIcon>
+                      <AdminPanelSettings fontSize="small" />
+                    </ListItemIcon>
+                    <Typography>Bảng quản trị</Typography>
                   </MenuItem>
                 )}
-                
+
                 <Divider />
-                
+
                 <MenuItem onClick={handleLogout}>
+                  <ListItemIcon>
+                    <ExitToApp fontSize="small" />
+                  </ListItemIcon>
                   <Typography>Đăng xuất</Typography>
                 </MenuItem>
               </Menu>

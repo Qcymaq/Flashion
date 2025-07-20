@@ -44,7 +44,7 @@ const ReturnsPage: React.FC = () => {
     {
       step: 1,
       title: 'Liên Hệ Hỗ Trợ',
-      content: 'Gọi đến hotline 1900 1234 hoặc gửi email đến support@flashion.com để thông báo về việc đổi trả.',
+              content: 'Gọi đến hotline 0819994722 hoặc gửi email đến support@flashion.com để thông báo về việc đổi trả.',
     },
     {
       step: 2,

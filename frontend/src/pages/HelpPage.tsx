@@ -62,7 +62,7 @@ const HelpPage: React.FC = () => {
               Liên Hệ Hỗ Trợ
             </Typography>
             <Typography variant="body1" paragraph>
-              Hotline: 0123456789
+              Hotline: 0819994722
             </Typography>
             <Typography variant="body1" paragraph>
               Email: support@flashion.com

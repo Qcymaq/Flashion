@@ -34,8 +34,6 @@ class PaymentStatus(str, Enum):
     REFUNDED = "refunded"
 
 class PaymentMethod(str, Enum):
-    MOMO = "momo"
-    VNPAY = "vnpay"
     BANK_TRANSFER = "bank_transfer"
 
 class Address(BaseModel):
@@ -67,6 +65,7 @@ class OrderBase(BaseModel):
     items: List[OrderItem]
     total_price: float
     shipping_address: str
+    phone_number: Optional[str] = None
     status: str = "pending"
 
 class OrderCreate(OrderBase):

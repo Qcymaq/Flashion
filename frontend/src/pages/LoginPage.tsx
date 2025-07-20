@@ -19,6 +19,10 @@ import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import { Link, useNavigate } from 'react-router-dom';
 import { endpoints } from '../config/api';
 import { useAuth } from '../contexts/AuthContext';
+import { 
+  getEmailValidationError, 
+  getPhoneValidationError 
+} from '../utils/validation';
 
 const LoginPage = () => {
   const [loginMethod, setLoginMethod] = useState('email');
@@ -38,11 +42,18 @@ const LoginPage = () => {
   const { login } = useAuth();
 
   useEffect(() => {
-    // Tự động đăng nhập nếu đã có token trong localStorage
-    const token = localStorage.getItem('access_token');
+    // Check for saved credentials and auto-login
+    const token = localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
+    const savedRememberPassword = localStorage.getItem('rememberPassword') === 'true';
+    
     if (token) {
       login(token);
       navigate('/');
+    }
+    
+    // Restore remember password preference
+    if (savedRememberPassword) {
+      setRememberPassword(true);
     }
   }, [login, navigate]);
 
@@ -56,11 +67,35 @@ const LoginPage = () => {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate email or phone based on login method
+    if (loginMethod === 'email') {
+      const emailError = getEmailValidationError(formData.email);
+      if (emailError) {
+        setSnackbar({
+          open: true,
+          message: emailError,
+          severity: 'error'
+        });
+        return;
+      }
+    } else {
+      const phoneError = getPhoneValidationError(formData.phone);
+      if (phoneError) {
+        setSnackbar({
+          open: true,
+          message: phoneError,
+          severity: 'error'
+        });
+        return;
+      }
+    }
+    
     try {
       // Create form data with the exact field names expected by OAuth2PasswordRequestForm
       const formDataToSend = new URLSearchParams();
       formDataToSend.append('grant_type', 'password');
-      formDataToSend.append('username', loginMethod === 'email' ? formData.email : formData.phone + '@flashion.com');
+      formDataToSend.append('username', loginMethod === 'email' ? formData.email : formData.phone);
       formDataToSend.append('password', formData.password);
       formDataToSend.append('scope', '');
 
@@ -82,11 +117,13 @@ const LoginPage = () => {
         throw new Error('No access token received');
       }
 
-      // Lưu token theo lựa chọn rememberPassword
+      // Save token based on remember password choice
       if (rememberPassword) {
         localStorage.setItem('access_token', data.access_token);
+        localStorage.setItem('rememberPassword', 'true');
       } else {
         sessionStorage.setItem('access_token', data.access_token);
+        localStorage.removeItem('rememberPassword');
       }
 
       // Use the login function from AuthContext

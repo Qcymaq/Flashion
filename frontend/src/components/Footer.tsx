@@ -6,11 +6,15 @@ import {
   Typography,
   IconButton,
   Link,
+  List,
+  ListItem,
+  ListItemText,
+  Divider,
 } from '@mui/material';
 import {
   Facebook as FacebookIcon,
 } from '@mui/icons-material';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link as RouterLink } from 'react-router-dom';
 
 const Footer: React.FC = () => {
   const navigate = useNavigate();
@@ -32,7 +36,7 @@ const Footer: React.FC = () => {
       <Container maxWidth="lg">
         <Grid container spacing={4}>
           {/* Company Info */}
-          <Grid item xs={12} md={3}>
+          <Grid item xs={12} md={4}>
             <Typography variant="h4" fontWeight={700} sx={{ mb: 2 }}>
               FLASHion
             </Typography>
@@ -53,7 +57,7 @@ const Footer: React.FC = () => {
           </Grid>
 
           {/* Customer Care */}
-          <Grid item xs={12} md={3}>
+          <Grid item xs={12} md={4}>
             <Typography fontWeight={700} sx={{ mb: 1, fontSize: 18 }}>CHĂM SÓC KHÁCH HÀNG</Typography>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
               <Link
@@ -92,7 +96,7 @@ const Footer: React.FC = () => {
           </Grid>
 
           {/* Flashion Info */}
-          <Grid item xs={12} md={3}>
+          <Grid item xs={12} md={4}>
             <Typography fontWeight={700} sx={{ mb: 1, fontSize: 18 }}>FLASHION</Typography>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
               <Link
@@ -129,19 +133,26 @@ const Footer: React.FC = () => {
               </Link>
             </Box>
           </Grid>
-
-          {/* Payment */}
-          <Grid item xs={12} md={3}>
-            <Typography fontWeight={700} sx={{ mb: 1, fontSize: 18 }}>THANH TOÁN</Typography>
-            <Box sx={{ display: 'flex', gap: 1, mt: 2 }}>
-              <Box component="img" src="/images/momo.png" sx={{ width: 40 }} />
-              <Box component="img" src="/images/vnpay.png" sx={{ width: 40 }} />
-              <Box component="img" src="/images/bank.png" sx={{ width: 40 }} />
-            </Box>
-          </Grid>
         </Grid>
-        <Box sx={{ borderTop: '1px solid #fff', mt: 4, pt: 2, textAlign: 'center', fontSize: 13 }}>
-          2024 FLASHion Company, All Rights Reserved
+        
+        <Divider sx={{ my: 3 }} />
+        
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
+          <Typography variant="body2" color="text.secondary">
+            © 2025 Flashion. Tất cả quyền được bảo lưu.
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 2, mt: { xs: 2, sm: 0 } }}>
+            <RouterLink to="/terms" style={{ textDecoration: 'none', color: 'inherit' }}>
+              <Typography variant="body2" color="text.secondary">
+                Điều khoản sử dụng
+              </Typography>
+            </RouterLink>
+            <RouterLink to="/privacy" style={{ textDecoration: 'none', color: 'inherit' }}>
+              <Typography variant="body2" color="text.secondary">
+                Chính sách bảo mật
+              </Typography>
+            </RouterLink>
+          </Box>
         </Box>
       </Container>
     </Box>

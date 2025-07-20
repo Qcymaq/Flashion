@@ -32,6 +32,7 @@ import VirtualMakeupPage from './pages/VirtualMakeupPage';
 import PaymentConfirmationPage from './pages/PaymentConfirmationPage';
 import UserDetail from './pages/UserDetail';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 import BeautyTipsPage from './pages/BeautyTipsPage';
 import BeautyTipDetailPage from './pages/BeautyTipDetailPage';
 
@@ -46,6 +47,7 @@ import AdminSettingsPage from './pages/AdminSettingsPage';
 import ConsultationsPage from './pages/admin/ConsultationsPage';
 import AdminArchivedOrdersPage from './pages/AdminArchivedOrdersPage';
 import AdminBeautyTipsPage from './pages/AdminBeautyTipsPage';
+import AdminPasswordResetRequestsPage from './pages/AdminPasswordResetRequestsPage';
 
 // Components
 import ProtectedRoute from './components/ProtectedRoute';
@@ -114,6 +116,7 @@ function App() {
                 <Route path="login" element={<LoginPage />} />
                 <Route path="register" element={<RegisterPage />} />
                 <Route path="forgot-password" element={<ForgotPasswordPage />} />
+                <Route path="reset-password" element={<ResetPasswordPage />} />
               </Route>
 
               {/* Admin Routes */}
@@ -133,6 +136,7 @@ function App() {
                 <Route path="consultations" element={<ConsultationsPage />} />
                 <Route path="orders/archived" element={<AdminArchivedOrdersPage />} />
                 <Route path="beauty-tips" element={<AdminBeautyTipsPage />} />
+                <Route path="password-reset-requests" element={<AdminPasswordResetRequestsPage />} />
               </Route>
             </Routes>
           </Router>

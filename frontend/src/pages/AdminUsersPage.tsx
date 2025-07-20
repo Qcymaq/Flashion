@@ -26,9 +26,14 @@ import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   Add as AddIcon,
+  LockReset as LockResetIcon,
+  Email as EmailIcon,
 } from '@mui/icons-material';
+import { Alert, Snackbar, CircularProgress } from '@mui/material';
 import { fetchWithAuth } from '../utils/api';
+import { endpoints } from '../config/api';
 
+// Add membership to User interface
 interface User {
   _id: string;
   name: string;
@@ -36,6 +41,7 @@ interface User {
   role: 'user' | 'admin';
   is_active: boolean;
   created_at: string;
+  membership?: string;
 }
 
 const AdminUsersPage: React.FC = () => {
@@ -48,6 +54,12 @@ const AdminUsersPage: React.FC = () => {
     role: 'user',
     password: '',
   });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [resetPasswordDialog, setResetPasswordDialog] = useState(false);
+  const [resetPasswordUser, setResetPasswordUser] = useState<User | null>(null);
+  const [newPassword, setNewPassword] = useState('');
 
   useEffect(() => {
     fetchUsers();
@@ -55,7 +67,7 @@ const AdminUsersPage: React.FC = () => {
 
   const fetchUsers = async () => {
     try {
-      const response = await fetchWithAuth('/api/admin/users');
+      const response = await fetchWithAuth(endpoints.admin.users);
       if (response.ok) {
         const data = await response.json();
         setUsers(data);
@@ -93,10 +105,14 @@ const AdminUsersPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
+    
     try {
       const url = selectedUser
-        ? `/api/admin/users/${selectedUser._id}`
-        : '/api/admin/users';
+        ? `${endpoints.admin.users}/${selectedUser._id}`
+        : endpoints.admin.users;
       const method = selectedUser ? 'PUT' : 'POST';
 
       const response = await fetchWithAuth(url, {
@@ -108,32 +124,52 @@ const AdminUsersPage: React.FC = () => {
       });
 
       if (response.ok) {
+        setSuccess(selectedUser ? 'Người dùng đã được cập nhật thành công!' : 'Người dùng đã được tạo thành công!');
         fetchUsers();
-        handleClose();
+        setTimeout(() => {
+          handleClose();
+          setSuccess(null);
+        }, 2000);
+      } else {
+        const errorData = await response.json();
+        setError(errorData.detail || 'Có lỗi xảy ra khi lưu người dùng');
       }
     } catch (error) {
       console.error('Error saving user:', error);
+      setError('Có lỗi xảy ra khi lưu người dùng');
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (window.confirm('Are you sure you want to delete this user?')) {
+    if (window.confirm('Bạn có chắc chắn muốn xóa người dùng này?')) {
+      setLoading(true);
+      setError(null);
       try {
-        const response = await fetchWithAuth(`/api/admin/users/${id}`, {
+        const response = await fetchWithAuth(`${endpoints.admin.users}/${id}`, {
           method: 'DELETE',
         });
         if (response.ok) {
+          setSuccess('Người dùng đã được xóa thành công!');
           fetchUsers();
+          setTimeout(() => setSuccess(null), 3000);
+        } else {
+          const errorData = await response.json();
+          setError(errorData.detail || 'Có lỗi xảy ra khi xóa người dùng');
         }
       } catch (error) {
         console.error('Error deleting user:', error);
+        setError('Có lỗi xảy ra khi xóa người dùng');
+      } finally {
+        setLoading(false);
       }
     }
   };
 
   const handleToggleStatus = async (user: User) => {
     try {
-      const response = await fetchWithAuth(`/api/admin/users/${user._id}/status`, {
+      const response = await fetchWithAuth(`${endpoints.admin.users}/${user._id}/status`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -149,16 +185,76 @@ const AdminUsersPage: React.FC = () => {
     }
   };
 
+  const handleResetPassword = async () => {
+    if (!resetPasswordUser || !newPassword.trim()) {
+      setError('Vui lòng nhập mật khẩu mới');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await fetchWithAuth(endpoints.admin.resetUserPassword(resetPasswordUser._id), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ new_password: newPassword }),
+      });
+
+      if (response.ok) {
+        setSuccess('Mật khẩu đã được đặt lại thành công!');
+        setResetPasswordDialog(false);
+        setResetPasswordUser(null);
+        setNewPassword('');
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        const errorData = await response.json();
+        setError(errorData.detail || 'Có lỗi xảy ra khi đặt lại mật khẩu');
+      }
+    } catch (error) {
+      console.error('Error resetting password:', error);
+      setError('Có lỗi xảy ra khi đặt lại mật khẩu');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSendResetLink = async (user: User) => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await fetchWithAuth(endpoints.admin.sendResetLink(user._id), {
+        method: 'POST',
+      });
+
+      if (response.ok) {
+        setSuccess('Đã gửi link đặt lại mật khẩu cho người dùng!');
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        const errorData = await response.json();
+        setError(errorData.detail || 'Có lỗi xảy ra khi gửi link đặt lại mật khẩu');
+      }
+    } catch (error) {
+      console.error('Error sending reset link:', error);
+      setError('Có lỗi xảy ra khi gửi link đặt lại mật khẩu');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
-        <Typography variant="h4">Users</Typography>
+        <Typography variant="h4">Người dùng</Typography>
         <Button
           variant="contained"
           startIcon={<AddIcon />}
           onClick={() => handleOpen()}
         >
-          Add User
+          Thêm người dùng
         </Button>
       </Box>
 
@@ -166,12 +262,13 @@ const AdminUsersPage: React.FC = () => {
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>Name</TableCell>
+              <TableCell>Tên</TableCell>
               <TableCell>Email</TableCell>
-              <TableCell>Role</TableCell>
-              <TableCell>Status</TableCell>
-              <TableCell>Created At</TableCell>
-              <TableCell>Actions</TableCell>
+              <TableCell>Vai trò</TableCell>
+              <TableCell>Trạng thái</TableCell>
+              <TableCell>Thành viên</TableCell>
+              <TableCell>Ngày tạo</TableCell>
+              <TableCell>Thao tác</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -180,27 +277,69 @@ const AdminUsersPage: React.FC = () => {
                 <TableCell>{user.name}</TableCell>
                 <TableCell>{user.email}</TableCell>
                 <TableCell>
-                  <Chip
-                    label={user.role.replace('_', ' ')}
-                    color={user.role === 'admin' ? 'error' : 'primary'}
+                  <Chip 
+                    label={user.role === 'admin' ? 'Quản trị viên' : 'Người dùng'} 
+                    color={user.role === 'admin' ? 'error' : 'default'}
                     size="small"
                   />
                 </TableCell>
                 <TableCell>
-                  <Chip
-                    label={user.is_active ? 'Active' : 'Inactive'}
-                    color={user.is_active ? 'success' : 'error'}
+                  <Chip 
+                    label={user.is_active ? 'Hoạt động' : 'Không hoạt động'} 
+                    color={user.is_active ? 'success' : 'default'}
                     size="small"
                     onClick={() => handleToggleStatus(user)}
                     style={{ cursor: 'pointer' }}
                   />
                 </TableCell>
                 <TableCell>
-                  {new Date(user.created_at).toLocaleDateString()}
+                  <Select
+                    value={user.membership || 'free'}
+                    onChange={async (e) => {
+                      const newMembership = e.target.value;
+                      try {
+                        const response = await fetchWithAuth(`${endpoints.admin.users}/${user._id}/membership`, {
+                          method: 'PATCH',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ membership: newMembership }),
+                        });
+                        if (response.ok) {
+                          fetchUsers();
+                        } else {
+                          alert('Không thể cập nhật thành viên');
+                        }
+                      } catch (err) {
+                        alert('Lỗi cập nhật thành viên');
+                      }
+                    }}
+                    size="small"
+                  >
+                    <MenuItem value="free">Miễn phí</MenuItem>
+                    <MenuItem value="gold">Vàng</MenuItem>
+                    <MenuItem value="diamond">Kim cương</MenuItem>
+                  </Select>
+                </TableCell>
+                <TableCell>
+                  {new Date(user.created_at).toLocaleDateString('vi-VN')}
                 </TableCell>
                 <TableCell>
                   <IconButton onClick={() => handleOpen(user)}>
                     <EditIcon />
+                  </IconButton>
+                  <IconButton 
+                    onClick={() => {
+                      setResetPasswordUser(user);
+                      setResetPasswordDialog(true);
+                    }}
+                    title="Đặt lại mật khẩu"
+                  >
+                    <LockResetIcon />
+                  </IconButton>
+                  <IconButton 
+                    onClick={() => handleSendResetLink(user)}
+                    title="Gửi link đặt lại mật khẩu"
+                  >
+                    <EmailIcon />
                   </IconButton>
                   <IconButton onClick={() => handleDelete(user._id)}>
                     <DeleteIcon />
@@ -212,69 +351,141 @@ const AdminUsersPage: React.FC = () => {
         </Table>
       </TableContainer>
 
-      <Dialog open={open} onClose={handleClose}>
+      <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
         <DialogTitle>
-          {selectedUser ? 'Edit User' : 'Add New User'}
+          {selectedUser ? 'Chỉnh sửa người dùng' : 'Thêm người dùng mới'}
         </DialogTitle>
         <DialogContent>
           <Box component="form" onSubmit={handleSubmit} sx={{ mt: 2 }}>
             <TextField
               fullWidth
-              label="Name"
+              label="Tên"
+              name="name"
               value={formData.name}
               onChange={(e) =>
                 setFormData({ ...formData, name: e.target.value })
               }
+              margin="normal"
               required
-              sx={{ mb: 2 }}
             />
             <TextField
               fullWidth
               label="Email"
+              name="email"
               type="email"
               value={formData.email}
               onChange={(e) =>
                 setFormData({ ...formData, email: e.target.value })
               }
+              margin="normal"
               required
-              sx={{ mb: 2 }}
             />
+            <FormControl fullWidth margin="normal">
+              <InputLabel>Vai trò</InputLabel>
+              <Select
+                name="role"
+                value={formData.role}
+                onChange={(e) =>
+                  setFormData({ ...formData, role: e.target.value as User['role'] })
+                }
+                label="Vai trò"
+              >
+                <MenuItem value="user">Người dùng</MenuItem>
+                <MenuItem value="admin">Quản trị viên</MenuItem>
+              </Select>
+            </FormControl>
             {!selectedUser && (
               <TextField
                 fullWidth
-                label="Password"
+                label="Mật khẩu"
+                name="password"
                 type="password"
                 value={formData.password}
                 onChange={(e) =>
                   setFormData({ ...formData, password: e.target.value })
                 }
+                margin="normal"
                 required
-                sx={{ mb: 2 }}
               />
             )}
-            <FormControl fullWidth>
-              <InputLabel>Role</InputLabel>
-              <Select
-                value={formData.role}
-                label="Role"
-                onChange={(e) =>
-                  setFormData({ ...formData, role: e.target.value as User['role'] })
-                }
-                required
-              >
-                <MenuItem value="user">User</MenuItem>
-                <MenuItem value="admin">Admin</MenuItem>
-              </Select>
-            </FormControl>
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleClose}>Cancel</Button>
-          <Button onClick={handleSubmit} variant="contained">
-            {selectedUser ? 'Update' : 'Create'}
+          <Button onClick={handleClose} disabled={loading}>Hủy</Button>
+          <Button 
+            onClick={handleSubmit} 
+            variant="contained" 
+            disabled={loading}
+            startIcon={loading ? <CircularProgress size={20} /> : null}
+          >
+            {loading ? 'Đang xử lý...' : (selectedUser ? 'Cập nhật' : 'Thêm')}
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Reset Password Dialog */}
+      <Dialog open={resetPasswordDialog} onClose={() => setResetPasswordDialog(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          Đặt lại mật khẩu cho {resetPasswordUser?.name}
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ mt: 2 }}>
+            <TextField
+              fullWidth
+              label="Mật khẩu mới"
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              margin="normal"
+              required
+              helperText="Nhập mật khẩu mới cho người dùng"
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button 
+            onClick={() => {
+              setResetPasswordDialog(false);
+              setResetPasswordUser(null);
+              setNewPassword('');
+            }} 
+            disabled={loading}
+          >
+            Hủy
+          </Button>
+          <Button 
+            onClick={handleResetPassword} 
+            variant="contained" 
+            disabled={loading || !newPassword.trim()}
+            startIcon={loading ? <CircularProgress size={20} /> : null}
+          >
+            {loading ? 'Đang xử lý...' : 'Đặt lại mật khẩu'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Success/Error Alerts */}
+      <Snackbar
+        open={!!success}
+        autoHideDuration={6000}
+        onClose={() => setSuccess(null)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        <Alert onClose={() => setSuccess(null)} severity="success" sx={{ width: '100%' }}>
+          {success}
+        </Alert>
+      </Snackbar>
+
+      <Snackbar
+        open={!!error}
+        autoHideDuration={6000}
+        onClose={() => setError(null)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        <Alert onClose={() => setError(null)} severity="error" sx={{ width: '100%' }}>
+          {error}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

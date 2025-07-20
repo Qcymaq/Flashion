@@ -16,6 +16,14 @@ import { motion } from 'framer-motion';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import { endpoints } from '../config/api';
+import { 
+  validateEmail, 
+  validateVietnamesePhone, 
+  getEmailValidationError, 
+  getPhoneValidationError,
+  validatePassword,
+  validateName
+} from '../utils/validation';
 
 const RegisterPage = () => {
   const navigate = useNavigate();
@@ -50,57 +58,52 @@ const RegisterPage = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate form
-    if (!formData.name || !formData.password || !formData.confirmPassword) {
+    // Validate name
+    const nameValidation = validateName(formData.name);
+    if (!nameValidation.isValid) {
       setSnackbar({
         open: true,
-        message: 'Vui lòng điền đầy đủ thông tin',
+        message: nameValidation.error || 'Vui lòng nhập họ và tên',
         severity: 'error'
       });
       return;
     }
 
-    if (registerMethod === 'email' && !formData.email) {
-      setSnackbar({
-        open: true,
-        message: 'Vui lòng nhập email',
-        severity: 'error'
-      });
-      return;
-    }
-
-    if (registerMethod === 'phone' && !formData.phone) {
-      setSnackbar({
-        open: true,
-        message: 'Vui lòng nhập số điện thoại',
-        severity: 'error'
-      });
-      return;
-    }
-
-    // Validate email format
+    // Validate email or phone based on registration method
     if (registerMethod === 'email') {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(formData.email)) {
+      const emailError = getEmailValidationError(formData.email);
+      if (emailError) {
         setSnackbar({
           open: true,
-          message: 'Email không hợp lệ',
+          message: emailError,
+          severity: 'error'
+        });
+        return;
+      }
+    } else {
+      const phoneError = getPhoneValidationError(formData.phone);
+      if (phoneError) {
+        setSnackbar({
+          open: true,
+          message: phoneError,
           severity: 'error'
         });
         return;
       }
     }
 
-    // Validate password length
-    if (formData.password.length < 6) {
+    // Validate password
+    const passwordValidation = validatePassword(formData.password);
+    if (!passwordValidation.isValid) {
       setSnackbar({
         open: true,
-        message: 'Mật khẩu phải có ít nhất 6 ký tự',
+        message: passwordValidation.errors[0] || 'Mật khẩu không hợp lệ',
         severity: 'error'
       });
       return;
     }
 
+    // Validate password confirmation
     if (formData.password !== formData.confirmPassword) {
       setSnackbar({
         open: true,
@@ -113,7 +116,8 @@ const RegisterPage = () => {
     try {
       const requestBody = {
         name: formData.name,
-        email: registerMethod === 'email' ? formData.email : formData.phone + '@flashion.com',
+        email: registerMethod === 'email' ? formData.email : formData.phone,
+        phone: registerMethod === 'phone' ? formData.phone : undefined,
         password: formData.password,
       };
       

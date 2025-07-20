@@ -16,6 +16,7 @@ import {
   Email,
   AccessTime,
 } from '@mui/icons-material';
+import { motion } from 'framer-motion';
 import { submitConsultation, ConsultationForm } from '../services/consultation';
 import { 
   getEmailError, 
@@ -152,17 +153,17 @@ const ContactPage: React.FC = () => {
     {
       icon: <LocationOn sx={{ fontSize: 40, color: 'primary.main' }} />,
       title: 'Địa Chỉ',
-      content: '123 Đường ABC, Quận XYZ, TP. Hồ Chí Minh',
+      content: 'FPT University, Hồ Chí Minh',
     },
     {
       icon: <Phone sx={{ fontSize: 40, color: 'primary.main' }} />,
       title: 'Điện Thoại',
-      content: '1900 1234',
+      content: '0123456789',
     },
     {
       icon: <Email sx={{ fontSize: 40, color: 'primary.main' }} />,
       title: 'Email',
-      content: 'support@flashion.com',
+      content: 'flashion@fpt.vn',
     },
     {
       icon: <AccessTime sx={{ fontSize: 40, color: 'primary.main' }} />,
@@ -172,135 +173,153 @@ const ContactPage: React.FC = () => {
   ];
 
   return (
-    <Container maxWidth="lg" sx={{ py: 8 }}>
-      <Typography variant="h3" component="h1" gutterBottom align="center" sx={{ mb: 6 }}>
-        Liên Hệ
-      </Typography>
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.5 }}
+    >
+      <Container maxWidth="lg" sx={{ py: 8 }}>
+        <Typography variant="h3" component="h1" gutterBottom align="center" sx={{ mb: 6 }}>
+          Liên Hệ
+        </Typography>
 
-      <Grid container spacing={4}>
-        <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 4, height: '100%' }}>
-            <Typography variant="h5" gutterBottom>
-              Thông Tin Liên Hệ
-            </Typography>
-            <Box sx={{ mt: 3 }}>
-              {contactInfo.map((info, index) => (
-                <Box key={index} sx={{ display: 'flex', mb: 3 }}>
-                  <Box sx={{ mr: 2 }}>
-                    {info.icon}
+        <Grid container spacing={4}>
+          <Grid item xs={12} md={6}>
+            <Paper sx={{ p: 4, height: '100%' }}>
+              <Typography variant="h5" gutterBottom>
+                Thông Tin Liên Hệ
+              </Typography>
+              <Box sx={{ mt: 3 }}>
+                {contactInfo.map((info, index) => (
+                  <Box key={index} sx={{ display: 'flex', mb: 3 }}>
+                    <Box sx={{ mr: 2 }}>
+                      {info.icon}
+                    </Box>
+                    <Box>
+                      <Typography variant="h6" gutterBottom>
+                        {info.title}
+                      </Typography>
+                      <Typography variant="body1" sx={{ whiteSpace: 'pre-line' }}>
+                        {info.content}
+                      </Typography>
+                    </Box>
                   </Box>
-                  <Box>
-                    <Typography variant="h6" gutterBottom>
-                      {info.title}
-                    </Typography>
-                    <Typography variant="body1" sx={{ whiteSpace: 'pre-line' }}>
-                      {info.content}
-                    </Typography>
-                  </Box>
-                </Box>
-              ))}
+                ))}
+              </Box>
+            </Paper>
+          </Grid>
+
+          <Grid item xs={12} md={6}>
+            <Box sx={{
+              bgcolor: '#fff', 
+              borderRadius: 3, 
+              p: 4, 
+              boxShadow: 1, 
+              height: '100%'
+            }}>
+              <Typography variant="h6" fontWeight={700} align="center" sx={{ mb: 1 }}>
+                Gửi tin nhắn cho chúng tôi
+              </Typography>
+              <Typography align="center" sx={{ mb: 2, fontSize: 14 }}>
+                Chúng tôi phản hồi ngay sau 1 - 3 phút
+              </Typography>
+              <Box component="form" onSubmit={handleSubmit}>
+                <TextField
+                  fullWidth
+                  label="Họ và tên của bạn"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  size="small"
+                  sx={{ mb: 2 }}
+                  required
+                  error={!!errors.name}
+                  helperText={errors.name}
+                />
+                <TextField
+                  fullWidth
+                  label="Email"
+                  name="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  size="small"
+                  sx={{ mb: 2 }}
+                  required
+                  error={!!errors.email}
+                  helperText={errors.email}
+                />
+                <TextField
+                  fullWidth
+                  label="Số điện thoại"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  size="small"
+                  sx={{ mb: 2 }}
+                  required
+                  error={!!errors.phone}
+                  helperText={errors.phone}
+                />
+                <TextField
+                  fullWidth
+                  label="Vui lòng chọn dịch vụ mà quan tâm"
+                  name="service"
+                  value={formData.service}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  size="small"
+                  sx={{ mb: 2 }}
+                  required
+                  error={!!errors.service}
+                  helperText={errors.service}
+                />
+                <TextField
+                  fullWidth
+                  label="Yêu cầu cụ thể (nếu có)"
+                  name="message"
+                  value={formData.message}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  size="small"
+                  sx={{ mb: 2 }}
+                  multiline
+                  rows={3}
+                  error={!!errors.message}
+                  helperText={errors.message}
+                />
+                <Button
+                  fullWidth
+                  variant="contained"
+                  type="submit"
+                  sx={{ bgcolor: '#fbeee6', color: '#000', fontWeight: 700 }}
+                >
+                  Gửi ngay cho chúng tôi
+                </Button>
+              </Box>
             </Box>
-          </Paper>
+          </Grid>
         </Grid>
 
-        <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 4 }}>
-            <Typography variant="h5" gutterBottom>
-              Gửi Tin Nhắn Cho Chúng Tôi
-            </Typography>
-            <Box component="form" onSubmit={handleSubmit} sx={{ mt: 3 }}>
-              <TextField
-                fullWidth
-                label="Họ và tên"
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                onBlur={handleBlur}
-                required
-                margin="normal"
-                error={!!errors.name}
-                helperText={errors.name}
-              />
-              <TextField
-                fullWidth
-                label="Email"
-                name="email"
-                type="email"
-                value={formData.email}
-                onChange={handleChange}
-                onBlur={handleBlur}
-                required
-                margin="normal"
-                error={!!errors.email}
-                helperText={errors.email}
-              />
-              <TextField
-                fullWidth
-                label="Số điện thoại"
-                name="phone"
-                value={formData.phone}
-                onChange={handleChange}
-                onBlur={handleBlur}
-                required
-                margin="normal"
-                error={!!errors.phone}
-                helperText={errors.phone}
-              />
-              <TextField
-                fullWidth
-                label="Dịch vụ quan tâm"
-                name="service"
-                value={formData.service}
-                onChange={handleChange}
-                onBlur={handleBlur}
-                required
-                margin="normal"
-                error={!!errors.service}
-                helperText={errors.service}
-              />
-              <TextField
-                fullWidth
-                label="Nội dung"
-                name="message"
-                value={formData.message}
-                onChange={handleChange}
-                onBlur={handleBlur}
-                required
-                multiline
-                rows={4}
-                margin="normal"
-                error={!!errors.message}
-                helperText={errors.message}
-              />
-              <Button
-                type="submit"
-                variant="contained"
-                size="large"
-                fullWidth
-                sx={{ mt: 3 }}
-              >
-                Gửi Tin Nhắn
-              </Button>
-            </Box>
-          </Paper>
-        </Grid>
-      </Grid>
-
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={6000}
-        onClose={handleCloseSnackbar}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert
+        <Snackbar
+          open={snackbar.open}
+          autoHideDuration={6000}
           onClose={handleCloseSnackbar}
-          severity={snackbar.severity}
-          sx={{ width: '100%' }}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
         >
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
-    </Container>
+          <Alert
+            onClose={handleCloseSnackbar}
+            severity={snackbar.severity}
+            sx={{ width: '100%' }}
+          >
+            {snackbar.message}
+          </Alert>
+        </Snackbar>
+      </Container>
+    </motion.div>
   );
 };
 

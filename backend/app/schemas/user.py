@@ -1,9 +1,10 @@
 from pydantic import BaseModel, EmailStr, Field, ConfigDict, validator, GetJsonSchemaHandler
-from typing import Optional, Any, Literal, Annotated
+from typing import Optional, Any, Literal, Annotated, Union
 from datetime import datetime
 from bson import ObjectId
 from pydantic.json_schema import JsonSchemaValue
 from pydantic_core import CoreSchema, core_schema
+import re
 
 class PyObjectId(str):
     @classmethod
@@ -39,7 +40,7 @@ class PyObjectId(str):
         return {"type": "string", "description": "ObjectId"}
 
 class UserBase(BaseModel):
-    email: EmailStr
+    email: str  # Changed from EmailStr to str to handle both email and phone
     name: str
     phone: Optional[str] = None
     address: Optional[str] = None
@@ -55,6 +56,31 @@ class UserBase(BaseModel):
             raise ValueError("Role must be either 'user' or 'admin'")
         return v
 
+    @validator('email')
+    def validate_email_or_phone(cls, v):
+        # Check if it's a valid email
+        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        # Check if it's a valid phone number (10 or 11 digits)
+        phone_pattern = r'^[0-9]{10,11}$'
+        
+        if re.match(email_pattern, v):
+            return v
+        elif re.match(phone_pattern, v):
+            return v
+        else:
+            raise ValueError("Must be a valid email address or phone number (10 or 11 digits)")
+    
+    @validator('phone')
+    def validate_phone(cls, v):
+        if v is None:
+            return v
+        
+        # Phone number pattern (10 or 11 digits)
+        phone_pattern = r'^[0-9]{10,11}$'
+        if not re.match(phone_pattern, v):
+            raise ValueError("Phone number must be 10 or 11 digits")
+        return v
+
 class UserCreate(UserBase):
     password: str
 
@@ -65,8 +91,22 @@ class UserCreate(UserBase):
         return v
 
 class LoginRequest(BaseModel):
-    email: EmailStr
+    email: str  # Changed from EmailStr to str to handle both email and phone
     password: str
+
+    @validator('email')
+    def validate_email_or_phone(cls, v):
+        # Check if it's a valid email
+        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        # Check if it's a valid phone number (10 or 11 digits)
+        phone_pattern = r'^[0-9]{10,11}$'
+        
+        if re.match(email_pattern, v):
+            return v
+        elif re.match(phone_pattern, v):
+            return v
+        else:
+            raise ValueError("Must be a valid email address or phone number (10 or 11 digits)")
 
 class UserInDB(UserBase):
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")

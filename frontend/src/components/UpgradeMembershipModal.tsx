@@ -217,13 +217,60 @@ const UpgradeMembershipModal: React.FC<UpgradeMembershipModalProps> = ({ open, o
     return { membership, currentLimit };
   };
 
-  const copyToClipboard = async (text: string, type: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopiedText(type);
-      setTimeout(() => setCopiedText(null), 2000);
-    } catch (err) {
-      console.error('Failed to copy text: ', err);
+  const getMembershipLabel = (membership: string) => {
+    switch (membership) {
+      case 'gold': return 'Vàng';
+      case 'diamond': return 'Kim cương';
+      default: return 'Miễn phí';
+    }
+  };
+
+  const getMembershipColor = (membership: string) => {
+    switch (membership) {
+      case 'gold': return '#FFD700';
+      case 'diamond': return '#B9F2FF';
+      default: return '#666';
+    }
+  };
+
+  const getMembershipIcon = (membership: string) => {
+    switch (membership) {
+      case 'gold': return <StarIcon sx={{ color: '#FFD700' }} />;
+      case 'diamond': return <DiamondIcon sx={{ color: '#B9F2FF' }} />;
+      default: return null;
+    }
+  };
+
+  const getMembershipPrice = (membership: string) => {
+    switch (membership) {
+      case 'gold': return 49000;
+      case 'diamond': return 199000;
+      default: return 0;
+    }
+  };
+
+  const getMembershipBenefits = (membership: string) => {
+    switch (membership) {
+      case 'gold':
+        return [
+          '50 lần thử trang điểm ảo mỗi tháng',
+          'Ưu tiên hỗ trợ khách hàng',
+          'Giảm giá 10% cho đơn hàng đầu tiên',
+          'Truy cập sớm các sản phẩm mới'
+        ];
+      case 'diamond':
+        return [
+          'Không giới hạn thử trang điểm ảo',
+          'Hỗ trợ khách hàng 24/7',
+          'Giảm giá 20% cho tất cả đơn hàng',
+          'Truy cập độc quyền các sản phẩm cao cấp',
+          'Tư vấn chuyên gia miễn phí'
+        ];
+      default:
+        return [
+          '10 lần thử trang điểm ảo mỗi tháng',
+          'Truy cập cơ bản các tính năng'
+        ];
     }
   };
 
@@ -239,397 +286,357 @@ const UpgradeMembershipModal: React.FC<UpgradeMembershipModalProps> = ({ open, o
       PaperProps={{
         sx: {
           borderRadius: 3,
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          maxHeight: '90vh'
         }
       }}
     >
       <DialogTitle sx={{ 
-        color: 'white', 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center',
-        pb: 1
+        bgcolor: 'primary.main', 
+        color: 'white',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
       }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <OfferIcon />
-          <Typography variant="h5" fontWeight="bold">
-            Nâng cấp thành viên
-          </Typography>
-        </Box>
+        <Typography variant="h6" fontWeight={600}>
+          Nâng cấp thành viên
+        </Typography>
         <IconButton onClick={onClose} sx={{ color: 'white' }}>
           <CloseIcon />
         </IconButton>
       </DialogTitle>
 
-      <DialogContent sx={{ bgcolor: 'white', p: 0 }}>
-        <Box sx={{ p: 3 }}>
-          {/* Current Membership Status */}
-          <Card sx={{ mb: 3, bgcolor: 'grey.50' }}>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-                <Avatar sx={{ bgcolor: 'primary.main' }}>
-                  {user?.name?.charAt(0).toUpperCase()}
-                </Avatar>
-                <Box>
-                  <Typography variant="h6">{user?.name}</Typography>
-                  <Typography variant="body2" color="text.secondary">{user?.email}</Typography>
-                </Box>
-              </Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Chip 
-                  label={`Hạng hiện tại: ${membership.toUpperCase()}`}
-                  color="primary"
-                  variant="outlined"
-                />
-                {typeof user?.try_on_count === 'number' && (
-                  <Chip 
-                    label={`Đã thử: ${user.try_on_count}/${currentLimit}`}
-                    color="secondary"
-                    variant="outlined"
-                  />
-                )}
-              </Box>
-            </CardContent>
-          </Card>
-
-          {/* Status Alert */}
-          {statusLoading ? (
-            <Box my={2} display="flex" justifyContent="center">
-              <CircularProgress size={24} />
-            </Box>
-          ) : latestRequest && latestRequest.status && latestRequest.status !== 'none' && (
-            <Alert 
-              severity={
-                latestRequest.status === 'pending' ? 'info' :
-                latestRequest.status === 'approved' ? 'success' :
-                'error'
-              } 
-              sx={{ mb: 3 }}
-              icon={
-                latestRequest.status === 'pending' ? <InfoIcon /> :
-                latestRequest.status === 'approved' ? <CheckIcon /> :
-                <CloseIcon />
-              }
-            >
-              <Typography variant="body1" fontWeight="bold">
-                {latestRequest.status === 'pending' && 'Yêu cầu đang chờ duyệt'}
-                {latestRequest.status === 'approved' && 'Yêu cầu đã được duyệt!'}
-                {latestRequest.status === 'denied' && 'Yêu cầu bị từ chối'}
+      <DialogContent sx={{ p: 0 }}>
+        <Stepper activeStep={activeStep} orientation="vertical" sx={{ p: 3 }}>
+          {/* Step 1: Choose Plan */}
+          <Step>
+            <StepLabel>
+              <Typography variant="h6" fontWeight={600}>
+                Bước 1: Chọn gói thành viên
               </Typography>
-              <Typography variant="body2">
-                {latestRequest.status === 'pending' && 'Admin sẽ xem xét và phê duyệt yêu cầu của bạn trong thời gian sớm nhất.'}
-                {latestRequest.status === 'approved' && 'Chúc mừng! Bạn đã được nâng cấp thành viên thành công.'}
-                {latestRequest.status === 'denied' && 'Yêu cầu của bạn không được chấp nhận. Vui lòng liên hệ admin để biết thêm chi tiết.'}
-              </Typography>
-              {latestRequest.payment_proof_url && (
-                <Box mt={1}>
-                  <img 
-                    src={latestRequest.payment_proof_url} 
-                    alt="Payment proof" 
-                    style={{ 
-                      maxWidth: '100%', 
-                      maxHeight: '200px',
-                      borderRadius: '8px',
-                      border: '1px solid #ddd'
-                    }} 
-                  />
-                </Box>
-              )}
-            </Alert>
-          )}
-
-          {/* Stepper */}
-          <Stepper activeStep={activeStep} orientation="vertical" sx={{ mb: 3 }}>
-            <Step>
-              <StepLabel>Chọn gói thành viên</StepLabel>
-              <StepContent>
-                <Grid container spacing={3}>
-                  {plans.map((plan) => (
-                    <Grid item xs={12} md={6} key={plan.value}>
-                      <Card 
-                        sx={{ 
-                          cursor: 'pointer',
-                          border: selectedPlan === plan.value ? 3 : 1,
-                          borderColor: selectedPlan === plan.value ? 'primary.main' : 'grey.300',
-                          position: 'relative',
-                          transition: 'all 0.3s ease',
-                          '&:hover': {
-                            transform: 'translateY(-4px)',
-                            boxShadow: 4,
-                          }
-                        }}
-                        onClick={() => setSelectedPlan(plan.value)}
-                      >
-                        {plan.popular && (
-                          <Chip
-                            label="PHỔ BIẾN"
-                            color="secondary"
-                            size="small"
-                            sx={{
-                              position: 'absolute',
-                              top: 8,
-                              right: 8,
-                              zIndex: 1,
-                            }}
-                          />
-                        )}
-                        <CardContent>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                            {plan.icon}
-                            <Typography variant="h6" fontWeight="bold">
-                              {plan.label}
-                            </Typography>
-                          </Box>
-                          <Typography variant="h4" color="primary" fontWeight="bold" sx={{ mb: 2 }}>
-                            {formatPrice(plan.price)}
-                          </Typography>
-                          <List dense>
-                            {plan.features.map((feature, index) => (
-                              <ListItem key={index} sx={{ px: 0 }}>
-                                <ListItemIcon sx={{ minWidth: 32 }}>
-                                  <CheckIcon color="success" fontSize="small" />
-                                </ListItemIcon>
-                                <ListItemText primary={feature} />
-                              </ListItem>
-                            ))}
-                          </List>
-                        </CardContent>
-                      </Card>
-                    </Grid>
-                  ))}
-                </Grid>
-                <Box sx={{ mt: 2 }}>
-                  <Button
-                    variant="contained"
-                    onClick={() => setActiveStep(1)}
-                    disabled={!selectedPlan}
-                  >
-                    Tiếp tục
-                  </Button>
-                </Box>
-              </StepContent>
-            </Step>
-
-            <Step>
-              <StepLabel>Thanh toán</StepLabel>
-              <StepContent>
-                <form onSubmit={handleSubmit}>
-                  {/* Order Summary */}
-                  <Card sx={{ mb: 3 }}>
+            </StepLabel>
+            <StepContent>
+              <Grid container spacing={3}>
+                {/* Current Membership */}
+                <Grid item xs={12}>
+                  <Card sx={{ mb: 2, bgcolor: '#f8f9fa' }}>
                     <CardContent>
-                      <Typography variant="h6" gutterBottom>
-                        Thông tin đơn hàng
+                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                        {getMembershipIcon(membership)}
+                        <Typography variant="h6" sx={{ ml: 1 }}>
+                          Thành viên hiện tại: {getMembershipLabel(membership)}
+                        </Typography>
+                      </Box>
+                      <Typography variant="body2" color="text.secondary">
+                        Giới hạn thử trang điểm: {currentLimit} lần/tháng
                       </Typography>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-                        <Typography>Gói thành viên:</Typography>
-                        <Typography fontWeight="bold">{selectedPlanData?.label}</Typography>
-                      </Box>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-                        <Typography>Giá:</Typography>
-                        <Typography variant="h6" color="primary" fontWeight="bold">
-                          {selectedPlanData ? formatPrice(selectedPlanData.price) : ''}
-                        </Typography>
-                      </Box>
-                      <Divider sx={{ my: 2 }} />
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <Typography variant="h6">Tổng cộng:</Typography>
-                        <Typography variant="h5" color="primary" fontWeight="bold">
-                          {selectedPlanData ? formatPrice(selectedPlanData.price) : ''}
-                        </Typography>
-                      </Box>
                     </CardContent>
                   </Card>
+                </Grid>
 
-                  {/* Banking Information */}
-                  <Card sx={{ mb: 3 }}>
-                    <CardContent>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                        <BankIcon color="primary" />
-                        <Typography variant="h6">
-                          Thông tin chuyển khoản
+                {/* Upgrade Options */}
+                {membership !== 'gold' && (
+                  <Grid item xs={12} md={6}>
+                    <Card 
+                      sx={{ 
+                        cursor: 'pointer',
+                        border: selectedPlan === 'gold' ? 2 : 1,
+                        borderColor: selectedPlan === 'gold' ? 'primary.main' : 'divider',
+                        '&:hover': { borderColor: 'primary.main' }
+                      }}
+                      onClick={() => setSelectedPlan('gold')}
+                    >
+                      <CardContent>
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                          <StarIcon sx={{ color: '#FFD700', mr: 1 }} />
+                          <Typography variant="h6" fontWeight={600}>
+                            Gói Vàng
+                          </Typography>
+                        </Box>
+                        <Typography variant="h5" color="primary" fontWeight={700} sx={{ mb: 2 }}>
+                          {formatPrice(getMembershipPrice('gold'))}
+                        </Typography>
+                        <List dense>
+                          {getMembershipBenefits('gold').map((benefit, index) => (
+                            <ListItem key={index} sx={{ py: 0.5 }}>
+                              <ListItemIcon sx={{ minWidth: 30 }}>
+                                <CheckIcon color="success" fontSize="small" />
+                              </ListItemIcon>
+                              <ListItemText primary={benefit} />
+                            </ListItem>
+                          ))}
+                        </List>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                )}
+
+                {membership !== 'diamond' && (
+                  <Grid item xs={12} md={6}>
+                    <Card 
+                      sx={{ 
+                        cursor: 'pointer',
+                        border: selectedPlan === 'diamond' ? 2 : 1,
+                        borderColor: selectedPlan === 'diamond' ? 'primary.main' : 'divider',
+                        '&:hover': { borderColor: 'primary.main' }
+                      }}
+                      onClick={() => setSelectedPlan('diamond')}
+                    >
+                      <CardContent>
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                          <DiamondIcon sx={{ color: '#B9F2FF', mr: 1 }} />
+                          <Typography variant="h6" fontWeight={600}>
+                            Gói Kim cương
+                          </Typography>
+                        </Box>
+                        <Typography variant="h5" color="primary" fontWeight={700} sx={{ mb: 2 }}>
+                          {formatPrice(getMembershipPrice('diamond'))}
+                        </Typography>
+                        <List dense>
+                          {getMembershipBenefits('diamond').map((benefit, index) => (
+                            <ListItem key={index} sx={{ py: 0.5 }}>
+                              <ListItemIcon sx={{ minWidth: 30 }}>
+                                <CheckIcon color="success" fontSize="small" />
+                              </ListItemIcon>
+                              <ListItemText primary={benefit} />
+                            </ListItem>
+                          ))}
+                        </List>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                )}
+              </Grid>
+            </StepContent>
+          </Step>
+
+          {/* Step 2: Payment */}
+          <Step>
+            <StepLabel>
+              <Typography variant="h6" fontWeight={600}>
+                Bước 2: Thanh toán
+              </Typography>
+            </StepLabel>
+            <StepContent>
+              <Box sx={{ p: 2 }}>
+                <Typography variant="h6" gutterBottom>
+                  Thông tin thanh toán
+                </Typography>
+                
+                <Accordion>
+                  <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      <BankIcon sx={{ mr: 1 }} />
+                      <Typography fontWeight={600}>Chuyển khoản ngân hàng</Typography>
+                    </Box>
+                  </AccordionSummary>
+                  <AccordionDetails>
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} md={6}>
+                        <Card sx={{ p: 2, bgcolor: '#f8f9fa' }}>
+                          <Typography variant="subtitle2" fontWeight={600} gutterBottom>
+                            Vietcombank
+                          </Typography>
+                          <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                            <Typography variant="body2" sx={{ mr: 1 }}>Số tài khoản:</Typography>
+                            <Typography variant="body2" fontWeight={600} fontFamily="monospace">
+                              0631000524772
+                            </Typography>
+                            <IconButton 
+                              size="small" 
+                              onClick={() => {
+                                navigator.clipboard.writeText('0631000524772');
+                                setCopiedText('0631000524772');
+                                setTimeout(() => setCopiedText(null), 2000);
+                              }}
+                            >
+                              <CopyIcon fontSize="small" />
+                            </IconButton>
+                          </Box>
+                          <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                            <Typography variant="body2" sx={{ mr: 1 }}>Chủ tài khoản:</Typography>
+                            <Typography variant="body2" fontWeight={600}>
+                              PHAM DANG KHOI
+                            </Typography>
+                          </Box>
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <Typography variant="body2" sx={{ mr: 1 }}>Nội dung:</Typography>
+                            <Typography variant="body2" fontWeight={600} fontFamily="monospace">
+                              {user?.email} - {selectedPlan}
+                            </Typography>
+                            <IconButton 
+                              size="small" 
+                              onClick={() => {
+                                const content = `${user?.email} - ${selectedPlan}`;
+                                navigator.clipboard.writeText(content);
+                                setCopiedText(content);
+                                setTimeout(() => setCopiedText(null), 2000);
+                              }}
+                            >
+                              <CopyIcon fontSize="small" />
+                            </IconButton>
+                          </Box>
+                        </Card>
+                      </Grid>
+                      
+                      <Grid item xs={12} md={6}>
+                        <Card sx={{ p: 2, bgcolor: '#f8f9fa' }}>
+                          <Typography variant="subtitle2" fontWeight={600} gutterBottom>
+                            QR Code thanh toán
+                          </Typography>
+                          <Box sx={{ textAlign: 'center' }}>
+                            <img 
+                              src="/images/vietcombank-qr.png" 
+                              alt="QR Code" 
+                              style={{ width: 150, height: 150 }}
+                            />
+                          </Box>
+                        </Card>
+                      </Grid>
+                    </Grid>
+
+                    {copiedText && (
+                      <Alert severity="success" sx={{ mt: 2 }}>
+                        Đã sao chép: {copiedText}
+                      </Alert>
+                    )}
+                  </AccordionDetails>
+                </Accordion>
+
+                <Box sx={{ mt: 3 }}>
+                  <Typography variant="h6" gutterBottom>
+                    Tải lên chứng minh thanh toán
+                  </Typography>
+                  
+                  <Alert severity="info" sx={{ mb: 2 }}>
+                    <Typography variant="body2">
+                      📸 <strong>Hướng dẫn:</strong> Sau khi chuyển khoản, hãy chụp ảnh biên lai chuyển khoản và tải lên. 
+                      Admin sẽ xem được ảnh này để xác nhận thanh toán của bạn.
+                    </Typography>
+                  </Alert>
+                  
+                  <input
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                    id="payment-proof-upload"
+                    type="file"
+                    onChange={handleFileChange}
+                  />
+                  <label htmlFor="payment-proof-upload">
+                    <Button
+                      variant="outlined"
+                      component="span"
+                      startIcon={<UploadIcon />}
+                      sx={{ mb: 2 }}
+                    >
+                      Chọn ảnh chứng minh thanh toán
+                    </Button>
+                  </label>
+                  
+                  {paymentProof && (
+                    <Card sx={{ mt: 2, p: 2, bgcolor: '#f8f9fa' }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                        <CheckIcon sx={{ color: 'success.main', mr: 1 }} />
+                        <Typography variant="body2" color="success.main" fontWeight={600}>
+                          ✓ Đã chọn: {paymentProof.name}
                         </Typography>
                       </Box>
                       
-                      <Alert severity="info" sx={{ mb: 2 }}>
+                      <Box sx={{ textAlign: 'center' }}>
+                        <img
+                          src={URL.createObjectURL(paymentProof)}
+                          alt="Payment Proof Preview"
+                          style={{
+                            maxWidth: '100%',
+                            maxHeight: 200,
+                            borderRadius: 8,
+                            border: '2px solid #e0e0e0'
+                          }}
+                        />
+                      </Box>
+                      
+                      <Alert severity="success" sx={{ mt: 2 }}>
                         <Typography variant="body2">
-                          <strong>Lưu ý:</strong> Vui lòng chuyển khoản chính xác số tiền và ghi nội dung: <strong>FLASHION UPGRADE {user?.email?.split('@')[0]}</strong>
+                          ✅ Ảnh sẽ được tải lên server và admin có thể xem để xác nhận thanh toán của bạn.
                         </Typography>
                       </Alert>
-
-                      <Accordion defaultExpanded>
-                        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                          <Typography variant="subtitle1" fontWeight="bold">
-                            Tài khoản ngân hàng
-                          </Typography>
-                        </AccordionSummary>
-                        <AccordionDetails>
-                          <TableContainer component={Paper} variant="outlined">
-                            <Table size="small">
-                              <TableHead>
-                                <TableRow>
-                                  <TableCell>Ngân hàng</TableCell>
-                                  <TableCell>Số tài khoản</TableCell>
-                                  <TableCell>Chủ tài khoản</TableCell>
-                                  <TableCell>Thao tác</TableCell>
-                                </TableRow>
-                              </TableHead>
-                              <TableBody>
-                                {bankingInfo.map((bank, index) => (
-                                  <TableRow key={index}>
-                                    <TableCell>
-                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                        <BankIcon color="primary" fontSize="small" />
-                                        <Typography variant="body2" fontWeight="bold">
-                                          {bank.bank}
-                                        </Typography>
-                                      </Box>
-                                    </TableCell>
-                                    <TableCell>
-                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                        <Typography variant="body2" fontFamily="monospace" fontWeight="bold">
-                                          {bank.accountNumber}
-                                        </Typography>
-                                        <IconButton
-                                          size="small"
-                                          onClick={() => copyToClipboard(bank.accountNumber, `${bank.bank}-account`)}
-                                          color={copiedText === `${bank.bank}-account` ? 'success' : 'primary'}
-                                        >
-                                          <CopyIcon fontSize="small" />
-                                        </IconButton>
-                                      </Box>
-                                    </TableCell>
-                                    <TableCell>
-                                      <Typography variant="body2">
-                                        {bank.accountName}
-                                      </Typography>
-                                    </TableCell>
-                                    <TableCell>
-                                      <Box sx={{ display: 'flex', gap: 1 }}>
-                                        <Button
-                                          size="small"
-                                          variant="outlined"
-                                          startIcon={<QrIcon />}
-                                          onClick={() => window.open(bank.qrCode, '_blank')}
-                                        >
-                                          QR Code
-                                        </Button>
-                                      </Box>
-                                    </TableCell>
-                                  </TableRow>
-                                ))}
-                              </TableBody>
-                            </Table>
-                          </TableContainer>
-                        </AccordionDetails>
-                      </Accordion>
-
-                      <Accordion>
-                        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                          <Typography variant="subtitle1" fontWeight="bold">
-                            Hướng dẫn thanh toán
-                          </Typography>
-                        </AccordionSummary>
-                        <AccordionDetails>
-                          <List dense>
-                            <ListItem>
-                              <ListItemIcon>
-                                <CheckIcon color="success" fontSize="small" />
-                              </ListItemIcon>
-                              <ListItemText 
-                                primary="Chuyển khoản chính xác số tiền" 
-                                secondary={selectedPlanData ? formatPrice(selectedPlanData.price) : ''}
-                              />
-                            </ListItem>
-                                                         <ListItem>
-                               <ListItemIcon>
-                                 <CheckIcon color="success" fontSize="small" />
-                               </ListItemIcon>
-                               <ListItemText 
-                                 primary="Nội dung chuyển khoản" 
-                                 secondary={`FLASHION UPGRADE ${user?.email?.split('@')[0]}`}
-                               />
-                             </ListItem>
-                            <ListItem>
-                              <ListItemIcon>
-                                <CheckIcon color="success" fontSize="small" />
-                              </ListItemIcon>
-                              <ListItemText 
-                                primary="Chụp ảnh biên lai" 
-                                secondary="Sau khi chuyển khoản, vui lòng chụp ảnh biên lai và upload bên dưới"
-                              />
-                            </ListItem>
-                            <ListItem>
-                              <ListItemIcon>
-                                <CheckIcon color="success" fontSize="small" />
-                              </ListItemIcon>
-                              <ListItemText 
-                                primary="Chờ xác nhận" 
-                                secondary="Admin sẽ xác nhận thanh toán và nâng cấp tài khoản trong 24h"
-                              />
-                            </ListItem>
-                          </List>
-                        </AccordionDetails>
-                      </Accordion>
-                    </CardContent>
-                  </Card>
-
-                  {/* Payment Proof Upload */}
-                  <Card sx={{ mb: 2 }}>
-                    <CardContent>
-                      <Typography variant="h6" gutterBottom>
-                        Chứng minh thanh toán
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                        Vui lòng upload ảnh chụp màn hình hoặc biên lai thanh toán để admin có thể xác minh.
-                      </Typography>
-                      <TextField
-                        type="file"
-                        inputProps={{ accept: 'image/*' }}
-                        onChange={handleFileChange}
-                        fullWidth
-                        helperText="Chấp nhận: JPG, PNG, GIF (Tối đa 5MB)"
-                      />
-                    </CardContent>
-                  </Card>
-
-                  {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-                  {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
-
-                  <Box sx={{ display: 'flex', gap: 2 }}>
-                    <Button onClick={() => setActiveStep(0)}>
-                      Quay lại
-                    </Button>
-                    <Button 
-                      type="submit" 
-                      variant="contained" 
-                      color="primary" 
-                      disabled={loading || (latestRequest && latestRequest.status === 'pending')}
-                      startIcon={loading ? <CircularProgress size={18} /> : <PaymentIcon />}
-                    >
-                      {loading ? 'Đang gửi...' : 'Gửi yêu cầu'}
-                    </Button>
-                  </Box>
-                </form>
-              </StepContent>
-            </Step>
-
-            <Step>
-              <StepLabel>Hoàn thành</StepLabel>
-              <StepContent>
-                <Box sx={{ textAlign: 'center', py: 2 }}>
-                  <CheckIcon sx={{ fontSize: 64, color: 'success.main', mb: 2 }} />
-                  <Typography variant="h6" gutterBottom>
-                    Yêu cầu đã được gửi thành công!
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Admin sẽ xem xét và phê duyệt yêu cầu của bạn trong thời gian sớm nhất.
-                  </Typography>
+                    </Card>
+                  )}
                 </Box>
-              </StepContent>
-            </Step>
-          </Stepper>
-        </Box>
+              </Box>
+            </StepContent>
+          </Step>
+
+          {/* Step 3: Success */}
+          <Step>
+            <StepLabel>
+              <Typography variant="h6" fontWeight={600}>
+                Bước 3: Hoàn thành
+              </Typography>
+            </StepLabel>
+            <StepContent>
+              <Box sx={{ textAlign: 'center', py: 3 }}>
+                <CheckIcon sx={{ fontSize: 60, color: 'success.main', mb: 2 }} />
+                <Typography variant="h6" gutterBottom>
+                  Yêu cầu nâng cấp đã được gửi!
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Chúng tôi sẽ xem xét và phê duyệt yêu cầu của bạn trong thời gian sớm nhất.
+                </Typography>
+              </Box>
+            </StepContent>
+          </Step>
+        </Stepper>
       </DialogContent>
+
+      <DialogActions sx={{ p: 3, justifyContent: 'space-between' }}>
+        <Box>
+          {activeStep > 0 && activeStep < 2 && (
+            <Button onClick={() => setActiveStep(activeStep - 1)}>
+              Quay lại
+            </Button>
+          )}
+        </Box>
+        <Box>
+          {activeStep === 0 && (
+            <Button 
+              variant="contained" 
+              onClick={() => setActiveStep(1)}
+              disabled={!selectedPlan}
+            >
+              Tiếp tục
+            </Button>
+          )}
+          {activeStep === 1 && (
+            <Button 
+              variant="contained" 
+              onClick={handleSubmit}
+              disabled={!paymentProof || loading}
+              startIcon={loading ? <CircularProgress size={20} /> : null}
+            >
+              {loading ? 'Đang gửi...' : 'Gửi yêu cầu'}
+            </Button>
+          )}
+          {activeStep === 2 && (
+            <Button variant="contained" onClick={onClose}>
+              Đóng
+            </Button>
+          )}
+        </Box>
+      </DialogActions>
+
+      {/* Error Alert */}
+      {error && (
+        <Alert severity="error" sx={{ m: 2 }}>
+          {error}
+        </Alert>
+      )}
+
+      {/* Success Alert */}
+      {success && (
+        <Alert severity="success" sx={{ m: 2 }}>
+          {success}
+        </Alert>
+      )}
     </Dialog>
   );
 };

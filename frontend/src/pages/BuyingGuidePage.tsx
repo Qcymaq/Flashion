@@ -125,7 +125,7 @@ const BuyingGuidePage = () => {
               <Support />
             </ListItemIcon>
             <ListItemText
-              primary="Hotline hỗ trợ: 0123456789"
+                              primary="Hotline hỗ trợ: 0819994722"
               secondary="Thời gian làm việc: 8:00 - 22:00"
             />
           </ListItem>

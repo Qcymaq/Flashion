@@ -238,12 +238,12 @@ const CartPage = () => {
                     <Typography variant="subtitle1" fontWeight="medium">
                       {item.product_name}
                     </Typography>
-                    {item.color && (
+                    {item.color && item.color.trim() !== '' && (
                       <Typography variant="body2" color="text.secondary">
                         Màu: {item.color}
                       </Typography>
                     )}
-                    {item.size && (
+                    {item.size && item.size.trim() !== '' && (
                       <Typography variant="body2" color="text.secondary">
                         Kích thước: {item.size}
                       </Typography>

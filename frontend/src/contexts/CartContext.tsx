@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { endpoints } from '../config/api';
+import { useAuth } from './AuthContext';
 
 interface CartItem {
   _id: string;
@@ -44,16 +45,38 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
+  const { isAuthenticated, logout } = useAuth();
 
   const fetchCart = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
+      
+      // Don't fetch cart if user is not authenticated
+      if (!isAuthenticated) {
+        setLoading(false);
+        return;
+      }
+
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setLoading(false);
+        return;
+      }
+
       const response = await fetch(endpoints.cart.get, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${token}`,
         },
       });
+
+      if (response.status === 401) {
+        // Token is invalid or expired
+        console.log('Token expired, logging out user');
+        logout();
+        setLoading(false);
+        return;
+      }
 
       if (!response.ok) {
         throw new Error('Failed to fetch cart');
@@ -67,15 +90,17 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isAuthenticated, logout]);
 
   useEffect(() => {
-    if (localStorage.getItem('token')) {
+    if (isAuthenticated) {
       fetchCart();
     } else {
       setLoading(false);
+      setCart(null);
+      setError(null);
     }
-  }, [fetchCart]);
+  }, [isAuthenticated, fetchCart]);
 
   const addToCart = async (productId: string, quantity: number, color?: string, size?: string) => {
     try {
@@ -84,10 +109,15 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error('Invalid product ID format');
       }
 
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('No authentication token');
+      }
+
       const response = await fetch(endpoints.cart.add, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -97,6 +127,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           size,
         }),
       });
+
+      if (response.status === 401) {
+        logout();
+        throw new Error('Authentication expired. Please login again.');
+      }
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -119,13 +154,23 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error('Invalid item ID format');
       }
 
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('No authentication token');
+      }
+
       const response = await fetch(`${endpoints.cart.update(itemId)}?quantity=${quantity}`, {
         method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         }
       });
+
+      if (response.status === 401) {
+        logout();
+        throw new Error('Authentication expired. Please login again.');
+      }
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -144,12 +189,22 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const removeFromCart = async (itemId: string) => {
     try {
       setError(null);
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('No authentication token');
+      }
+
       const response = await fetch(endpoints.cart.remove(itemId), {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${token}`,
         },
       });
+
+      if (response.status === 401) {
+        logout();
+        throw new Error('Authentication expired. Please login again.');
+      }
 
       if (!response.ok) {
         throw new Error('Failed to remove item from cart');
@@ -167,12 +222,22 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const clearCart = async () => {
     try {
       setError(null);
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('No authentication token');
+      }
+
       const response = await fetch(endpoints.cart.clear, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${token}`,
         },
       });
+
+      if (response.status === 401) {
+        logout();
+        throw new Error('Authentication expired. Please login again.');
+      }
 
       if (!response.ok) {
         throw new Error('Failed to clear cart');

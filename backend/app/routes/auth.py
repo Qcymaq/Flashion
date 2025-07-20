@@ -13,6 +13,11 @@ from app.utils.database import get_database
 from bson import ObjectId
 import uuid
 import logging
+import secrets
+import smtplib
+import re
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 # Helper function to format membership upgrade logs
 def format_membership_log(log):
@@ -34,16 +39,34 @@ router = APIRouter()
 async def register(user: UserCreate):
     db = get_database()
     
-    # Check if user already exists
-    if await db.users.find_one({"email": user.email}):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered"
-        )
+    # Check if user already exists by email or phone
+    existing_user = await db.users.find_one({
+        "$or": [
+            {"email": user.email},
+            {"phone": user.phone} if user.phone else {"_id": None}
+        ]
+    })
+    
+    if existing_user:
+        if existing_user.get("email") == user.email:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already registered"
+            )
+        elif existing_user.get("phone") == user.phone:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Phone number already registered"
+            )
     
     # Create new user
     user_dict = user.model_dump()
     user_dict["hashed_password"] = get_password_hash(user_dict.pop("password"))
+    
+    # If email field contains a phone number, move it to phone field
+    if re.match(r'^(0|\+84)[3|5|7|8|9][0-9]{8}$', user.email):
+        user_dict["phone"] = user.email
+        user_dict["email"] = f"{user.email}@flashion.com"  # Create a unique email
     
     result = await db.users.insert_one(user_dict)
     created_user = await db.users.find_one({"_id": result.inserted_id})
@@ -54,13 +77,25 @@ async def register(user: UserCreate):
 async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     db = get_database()
     
-    # Use username field as email
-    user = await db.users.find_one({"email": form_data.username})
+    # Check if username is email or phone number
+    username = form_data.username
+    
+    # Try to find user by email first
+    user = await db.users.find_one({"email": username})
+    
+    # If not found by email, try by phone number
+    if not user:
+        user = await db.users.find_one({"phone": username})
+    
+    # If still not found, try by phone number with @flashion.com suffix
+    if not user and username.endswith('@flashion.com'):
+        phone_number = username.replace('@flashion.com', '')
+        user = await db.users.find_one({"phone": phone_number})
     
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Email not found",
+            detail="Email or phone number not found",
             headers={"WWW-Authenticate": "Bearer"},
         )
     
@@ -180,6 +215,12 @@ async def upgrade_membership(
     await db.users.update_one({"_id": current_user.id}, {"$set": update_data})
     updated_user = await db.users.find_one({"_id": current_user.id})
 
+    # Mark all previous pending requests as approved
+    await db.membership_upgrades.update_many(
+        {"user_id": str(current_user.id), "status": "pending"},
+        {"$set": {"status": "approved"}}
+    )
+
     # Log the upgrade in the membership_upgrades collection
     log_entry = {
         "user_id": str(current_user.id),
@@ -208,7 +249,13 @@ async def request_membership_upgrade(
     if current_user.membership == membership:
         raise HTTPException(status_code=400, detail=f"You already have {membership} membership.")
 
-    # Prevent duplicate pending requests
+    # Mark all previous pending requests as approved
+    await db.membership_upgrades.update_many(
+        {"user_id": str(current_user.id), "status": "pending"},
+        {"$set": {"status": "approved"}}
+    )
+
+    # Prevent duplicate pending requests (after marking previous as approved, this should not block new ones)
     existing = await db.membership_upgrades.find_one({
         "user_id": str(current_user.id),
         "status": "pending"
@@ -240,9 +287,11 @@ async def request_membership_upgrade(
     }
     result = await db.membership_upgrades.insert_one(log_entry)
     created = await db.membership_upgrades.find_one({"_id": result.inserted_id})
-    # Always include _id as string in the response
+    # Always include _id and user_id as string in the response
     if created:
         created["_id"] = str(created["_id"])
+        if "user_id" in created:
+            created["user_id"] = str(created["user_id"])
     logging.info(f"Created membership upgrade request for user {current_user.id} with id {result.inserted_id}")
     return {"message": "Upgrade request submitted. Awaiting admin approval.", "request": created} 
 
@@ -253,3 +302,236 @@ async def get_latest_upgrade_request_status(current_user: UserInDB = Depends(get
     if log:
         return log[0]
     return {"status": "none"} 
+
+# Password reset token storage (in production, use Redis or database)
+password_reset_tokens = {}
+
+# Password reset requests tracking for admin visibility
+password_reset_requests = {}
+
+# Email configuration (simulated)
+EMAIL_CONFIG = {
+    "smtp_server": "smtp.gmail.com",
+    "smtp_port": 587,
+    "sender_email": "noreply@flashion.com",
+    "sender_password": "your-app-password"  # In production, use environment variables
+}
+
+def send_password_reset_email(email: str, reset_token: str, user_name: str = None):
+    """Send password reset email (simulated for development)"""
+    try:
+        # In production, implement actual email sending
+        reset_url = f"http://localhost:3000/reset-password?token={reset_token}"
+        
+        # For development, just log the reset URL
+        logging.info(f"Password reset email would be sent to {email}")
+        logging.info(f"Reset URL: {reset_url}")
+        
+        # Simulate email sending
+        return True
+    except Exception as e:
+        logging.error(f"Failed to send password reset email: {e}")
+        return False
+
+def send_password_reset_sms(phone: str, reset_token: str):
+    """Send password reset SMS (simulated for development)"""
+    try:
+        # In production, integrate with SMS service
+        logging.info(f"Password reset SMS would be sent to {phone}")
+        logging.info(f"Reset token: {reset_token}")
+        return True
+    except Exception as e:
+        logging.error(f"Failed to send password reset SMS: {e}")
+        return False
+
+@router.post("/forgot-password")
+async def forgot_password(request: dict = Body(...)):
+    """Request password reset via email or phone - Admin will handle manually"""
+    db = get_database()
+    
+    email = request.get("email")
+    phone = request.get("phone")
+    
+    if not email and not phone:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email or phone number is required"
+        )
+    
+    # Find user by email or phone
+    query = {}
+    if email:
+        query["email"] = email
+    elif phone:
+        query["phone"] = phone
+    
+    user = await db.users.find_one(query)
+    if not user:
+        # Don't reveal if user exists or not for security
+        return {"message": "If the account exists, a password reset request has been submitted. Please contact admin for assistance."}
+    
+    # Generate reset token
+    reset_token = secrets.token_urlsafe(32)
+    expires_at = datetime.utcnow() + timedelta(hours=24)  # Token expires in 24 hours for admin processing
+    
+    # Store reset token (in production, store in database)
+    password_reset_tokens[reset_token] = {
+        "user_id": str(user["_id"]),
+        "email": user.get("email"),
+        "phone": user.get("phone"),
+        "expires_at": expires_at
+    }
+    
+    # Track password reset request for admin visibility
+    request_id = str(uuid.uuid4())
+    password_reset_requests[request_id] = {
+        "request_id": request_id,
+        "user_id": str(user["_id"]),
+        "user_email": user.get("email"),
+        "user_phone": user.get("phone"),
+        "user_name": user.get("name"),
+        "requested_at": datetime.utcnow(),
+        "expires_at": expires_at,
+        "status": "pending",  # pending, completed, expired
+        "reset_method": "email" if email else "phone",
+        "token": reset_token
+    }
+    
+    # Log the request for admin visibility
+    logging.info(f"Password reset requested for user {user.get('email')} (ID: {user['_id']}) via {request_id}")
+    
+    # Don't send automatic email/SMS - admin will handle manually
+    return {"message": "Password reset request has been submitted. Please contact admin for assistance."}
+
+@router.post("/reset-password")
+async def reset_password(request: dict = Body(...)):
+    """Reset password using reset token"""
+    db = get_database()
+    
+    token = request.get("token")
+    new_password = request.get("new_password")
+    
+    if not token or not new_password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Token and new password are required"
+        )
+    
+    # Validate token
+    token_data = password_reset_tokens.get(token)
+    if not token_data:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired reset token"
+        )
+    
+    if datetime.utcnow() > token_data["expires_at"]:
+        # Remove expired token
+        password_reset_tokens.pop(token, None)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Reset token has expired"
+        )
+    
+    # Update user password
+    hashed_password = get_password_hash(new_password)
+    result = await db.users.update_one(
+        {"_id": ObjectId(token_data["user_id"])},
+        {"$set": {"hashed_password": hashed_password, "updated_at": datetime.utcnow()}}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update password"
+        )
+    
+    # Update password reset request status
+    for request_id, request_data in password_reset_requests.items():
+        if request_data.get("token") == token:
+            request_data["status"] = "completed"
+            request_data["completed_at"] = datetime.utcnow()
+            logging.info(f"Password reset completed for user {request_data.get('user_email')} (Request ID: {request_id})")
+            break
+    
+    # Remove used token
+    password_reset_tokens.pop(token, None)
+    
+    return {"message": "Password has been reset successfully"}
+
+@router.post("/validate-reset-token")
+async def validate_reset_token(request: dict = Body(...)):
+    """Validate reset token without resetting password"""
+    token = request.get("token")
+    
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Token is required"
+        )
+    
+    token_data = password_reset_tokens.get(token)
+    if not token_data:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid reset token"
+        )
+    
+    if datetime.utcnow() > token_data["expires_at"]:
+        # Remove expired token
+        password_reset_tokens.pop(token, None)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Reset token has expired"
+        )
+    
+    return {"valid": True, "email": token_data.get("email"), "phone": token_data.get("phone")}
+
+@router.post("/change-password")
+async def change_password(
+    request: dict = Body(...),
+    current_user: UserInDB = Depends(get_current_active_user)
+):
+    """Change password for logged-in user"""
+    db = get_database()
+    
+    current_password = request.get("current_password")
+    new_password = request.get("new_password")
+    
+    if not current_password or not new_password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Current password and new password are required"
+        )
+    
+    # Verify current password
+    if not verify_password(current_password, current_user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Current password is incorrect"
+        )
+    
+    # Validate new password (same as registration validation)
+    if len(new_password) < 6:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="New password must be at least 6 characters long"
+        )
+    
+    # Update password
+    hashed_password = get_password_hash(new_password)
+    result = await db.users.update_one(
+        {"_id": ObjectId(current_user.id)},
+        {"$set": {"hashed_password": hashed_password, "updated_at": datetime.utcnow()}}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update password"
+        )
+    
+    # Log the password change
+    logging.info(f"User {current_user.email} changed their password")
+    
+    return {"message": "Password has been changed successfully"} 

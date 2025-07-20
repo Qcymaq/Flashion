@@ -203,7 +203,10 @@ const VirtualMakeup: React.FC<VirtualMakeupProps> = ({
         // Check for try-on limit exceeded
         if (response.status === 403) {
           const errorData = await response.json().catch(() => null);
-          if (errorData && errorData.detail && errorData.detail.includes('try-on limit')) {
+          if (errorData && errorData.detail && (
+            errorData.detail.includes('try-on limit') || 
+            errorData.detail.includes('upgrade to try more')
+          )) {
             setError('Bạn đã vượt quá số lần thử cho hạng thành viên hiện tại. Vui lòng nâng cấp để tiếp tục sử dụng.');
             setUpgradeOpen(true);
             return;
@@ -220,6 +223,15 @@ const VirtualMakeup: React.FC<VirtualMakeupProps> = ({
       if (refreshUser) await refreshUser();
     } catch (err) {
       console.error('Error uploading image:', err);
+      
+      // Check if this is a try-on limit error (even if caught in general catch)
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      if (errorMessage.includes('try-on limit') || errorMessage.includes('upgrade to try more')) {
+        setError('Bạn đã vượt quá số lần thử cho hạng thành viên hiện tại. Vui lòng nâng cấp để tiếp tục sử dụng.');
+        setUpgradeOpen(true);
+        return;
+      }
+      
       setError('Không thể xử lý ảnh. Vui lòng thử lại.');
     } finally {
       setLoading(false);
@@ -382,7 +394,7 @@ const VirtualMakeup: React.FC<VirtualMakeupProps> = ({
     }
 
     try {
-      await addToCart(productId, 1, productColor);
+      await addToCart(productId, 1, productColor, undefined);
       setCartMessage('Đã thêm sản phẩm vào giỏ hàng thành công!');
       setTimeout(() => setCartMessage(null), 3000);
     } catch (err) {

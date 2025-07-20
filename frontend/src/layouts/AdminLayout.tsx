@@ -25,6 +25,7 @@ import {
   Archive as ArchiveIcon,
   Article as ArticleIcon,
   Upgrade as UpgradeIcon,
+  LockReset as PasswordResetIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -54,6 +55,7 @@ const AdminLayout: React.FC = () => {
     { text: 'Archived Orders', icon: <ArchiveIcon />, path: '/admin/orders/archived' },
     { text: 'Beauty Tips', icon: <ArticleIcon />, path: '/admin/beauty-tips' },
     { text: 'Consultations', icon: <ConsultationIcon />, path: '/admin/consultations' },
+    { text: 'Password Reset Requests', icon: <PasswordResetIcon />, path: '/admin/password-reset-requests' },
   ];
 
   const drawer = (

@@ -194,7 +194,7 @@ const StudioPage: React.FC = () => {
       return;
     }
 
-    addToCart(product._id, quantity, selectedSize, product.colors[selectedColor]);
+    addToCart(product._id, quantity, product.colors[selectedColor], selectedSize);
 
     setSnackbar({
       open: true,

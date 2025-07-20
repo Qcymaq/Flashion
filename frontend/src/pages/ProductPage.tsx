@@ -95,7 +95,7 @@ const ProductPage: React.FC = () => {
 
   const handleAddToCart = () => {
     if (product) {
-      addToCart(product._id, quantity, '', selectedColor);
+      addToCart(product._id, quantity, selectedColor, '');
       setSnackbar({
         open: true,
         message: 'Sản phẩm đã được thêm vào giỏ hàng!',

@@ -6,25 +6,12 @@ from app.schemas.order import Order, OrderCreate, OrderStatus, PaymentStatus, Pa
 from app.schemas.user import User
 from app.utils.database import get_database
 from app.utils.auth import get_current_active_user
-import hashlib
-import hmac
-import json
-import requests
-from urllib.parse import urlencode
+
 from pydantic import BaseModel
 
 router = APIRouter()
 
-# Payment configuration
-MOMO_PARTNER_CODE = "MOMO"
-MOMO_ACCESS_KEY = "F8BBA842ECF85"
-MOMO_SECRET_KEY = "K951B6PE1waDMi640xX08PD3vg6EkVlz"
-MOMO_ENDPOINT = "https://test-payment.momo.vn/v2/gateway/api/create"
 
-VNPAY_TMN_CODE = "2QXUI4J4"
-VNPAY_HASH_SECRET = "KNPLWSWZQZQZQZQZQZQZQZQZQZQZQZQZQ"
-VNPAY_URL = "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html"
-VNPAY_RETURN_URL = "http://localhost:3000/payment/vnpay/return"
 
 class OrderItem(BaseModel):
     product_id: str
@@ -304,225 +291,26 @@ async def create_payment(
     if str(order["user_id"]) != str(current_user.id):
         raise HTTPException(status_code=403, detail="Not authorized")
     
-    if payment_method == PaymentMethod.MOMO:
-        return await create_momo_payment(order_id, current_user)
-    elif payment_method == PaymentMethod.VNPAY:
-        return await create_vnpay_payment(order_id, current_user)
-    else:
-        raise HTTPException(status_code=400, detail="Invalid payment method")
-
-@router.post("/{order_id}/payment/momo")
-async def create_momo_payment(
-    order_id: str,
-    current_user: User = Depends(get_current_active_user)
-):
-    db = get_database()
-    order = await db.orders.find_one({"_id": ObjectId(order_id)})
-    
-    if not order:
-        raise HTTPException(status_code=404, detail="Order not found")
-    
-    if str(order["user_id"]) != str(current_user.id):
-        raise HTTPException(status_code=403, detail="Not authorized")
-    
-    # Prepare MoMo payment request
-    order_info = f"Thanh toan don hang {order_id}"
-    amount = str(order["total_amount"])
-    order_id = str(order["_id"])
-    request_id = str(ObjectId())
-    extra_data = ""
-    
-    # Create signature
-    raw_signature = f"partnerCode={MOMO_PARTNER_CODE}&accessKey={MOMO_ACCESS_KEY}&requestId={request_id}&amount={amount}&orderId={order_id}&orderInfo={order_info}&returnUrl={VNPAY_RETURN_URL}&ipnUrl={VNPAY_RETURN_URL}&extraData={extra_data}"
-    signature = hmac.new(
-        MOMO_SECRET_KEY.encode(),
-        raw_signature.encode(),
-        hashlib.sha256
-    ).hexdigest()
-    
-    # Prepare request data
-    request_data = {
-        "partnerCode": MOMO_PARTNER_CODE,
-        "accessKey": MOMO_ACCESS_KEY,
-        "requestId": request_id,
-        "amount": amount,
-        "orderId": order_id,
-        "orderInfo": order_info,
-        "returnUrl": VNPAY_RETURN_URL,
-        "ipnUrl": VNPAY_RETURN_URL,
-        "extraData": extra_data,
-        "requestType": "captureWallet",
-        "signature": signature
-    }
-    
-    try:
-        # Send request to MoMo
-        response = requests.post(MOMO_ENDPOINT, json=request_data)
-        response.raise_for_status()
-        payment_data = response.json()
-        
-        if payment_data.get("resultCode") != 0:
-            raise HTTPException(status_code=400, detail=payment_data.get("message", "Payment creation failed"))
-        
-        # Update order with payment details
+    if payment_method == PaymentMethod.BANK_TRANSFER:
+        # For bank transfer, just update the order status
         await db.orders.update_one(
             {"_id": ObjectId(order_id)},
             {
                 "$set": {
                     "payment_details": {
-                        "method": PaymentMethod.MOMO,
+                        "method": PaymentMethod.BANK_TRANSFER,
                         "status": PaymentStatus.PENDING,
-                        "transaction_id": request_id
+                        "transaction_id": None
                     },
                     "updated_at": datetime.utcnow()
                 }
             }
         )
-        
-        return {"payment_url": payment_data.get("payUrl")}
-    except requests.RequestException as e:
-        raise HTTPException(status_code=400, detail=f"Failed to create payment: {str(e)}")
-
-@router.post("/{order_id}/payment/vnpay")
-async def create_vnpay_payment(
-    order_id: str,
-    current_user: User = Depends(get_current_active_user)
-):
-    db = get_database()
-    order = await db.orders.find_one({"_id": ObjectId(order_id)})
-    
-    if not order:
-        raise HTTPException(status_code=404, detail="Order not found")
-    
-    if str(order["user_id"]) != str(current_user.id):
-        raise HTTPException(status_code=403, detail="Not authorized")
-    
-    # Prepare VNPay payment request
-    vnp_TmnCode = VNPAY_TMN_CODE
-    vnp_Amount = str(order["total_amount"] * 100)  # Convert to smallest currency unit
-    vnp_Command = "pay"
-    vnp_CreateDate = datetime.utcnow().strftime('%Y%m%d%H%M%S')
-    vnp_CurrCode = "VND"
-    vnp_IpAddr = "127.0.0.1"  # Should be replaced with actual client IP
-    vnp_Locale = "vn"
-    vnp_OrderInfo = f"Thanh toan don hang {order_id}"
-    vnp_OrderType = "other"
-    vnp_ReturnUrl = VNPAY_RETURN_URL
-    vnp_TxnRef = str(order["_id"])
-    vnp_Version = "2.1.0"
-    
-    # Create input data
-    inputData = {
-        "vnp_Version": vnp_Version,
-        "vnp_Command": vnp_Command,
-        "vnp_TmnCode": vnp_TmnCode,
-        "vnp_Amount": vnp_Amount,
-        "vnp_CreateDate": vnp_CreateDate,
-        "vnp_CurrCode": vnp_CurrCode,
-        "vnp_IpAddr": vnp_IpAddr,
-        "vnp_Locale": vnp_Locale,
-        "vnp_OrderInfo": vnp_OrderInfo,
-        "vnp_OrderType": vnp_OrderType,
-        "vnp_ReturnUrl": vnp_ReturnUrl,
-        "vnp_TxnRef": vnp_TxnRef
-    }
-    
-    # Sort input data
-    sorted_input = sorted(inputData.items())
-    
-    # Create hash data
-    hashdata = "&".join(f"{key}={value}" for key, value in sorted_input)
-    
-    # Create signature
-    hmac_obj = hmac.new(
-        VNPAY_HASH_SECRET.encode(),
-        hashdata.encode(),
-        hashlib.sha512
-    )
-    vnp_SecureHash = hmac_obj.hexdigest()
-    
-    # Add signature to input data
-    inputData["vnp_SecureHash"] = vnp_SecureHash
-    
-    # Create payment URL
-    payment_url = f"{VNPAY_URL}?{urlencode(inputData)}"
-    
-    # Update order with payment details
-    await db.orders.update_one(
-        {"_id": ObjectId(order_id)},
-        {
-            "$set": {
-                "payment_details": {
-                    "method": PaymentMethod.VNPAY,
-                    "status": PaymentStatus.PENDING,
-                    "transaction_id": vnp_TxnRef
-                },
-                "updated_at": datetime.utcnow()
-            }
-        }
-    )
-    
-    return {"payment_url": payment_url}
-
-@router.get("/payment/vnpay/return")
-async def vnpay_return(
-    request: Request,
-    current_user: User = Depends(get_current_active_user)
-):
-    # Get all query parameters
-    vnp_Params = dict(request.query_params)
-    
-    # Remove signature from parameters
-    vnp_SecureHash = vnp_Params.pop("vnp_SecureHash", None)
-    
-    # Sort parameters
-    sorted_params = sorted(vnp_Params.items())
-    
-    # Create hash data
-    hashdata = "&".join(f"{key}={value}" for key, value in sorted_params)
-    
-    # Create signature
-    hmac_obj = hmac.new(
-        VNPAY_HASH_SECRET.encode(),
-        hashdata.encode(),
-        hashlib.sha512
-    )
-    secure_hash = hmac_obj.hexdigest()
-    
-    # Verify signature
-    if secure_hash != vnp_SecureHash:
-        raise HTTPException(status_code=400, detail="Invalid signature")
-    
-    # Get order ID from transaction reference
-    order_id = vnp_Params.get("vnp_TxnRef")
-    response_code = vnp_Params.get("vnp_ResponseCode")
-    
-    db = get_database()
-    
-    # Update order status based on response code
-    if response_code == "00":
-        await db.orders.update_one(
-            {"_id": ObjectId(order_id)},
-            {
-                "$set": {
-                    "payment_details.status": PaymentStatus.COMPLETED,
-                    "status": OrderStatus.PROCESSING,
-                    "updated_at": datetime.utcnow()
-                }
-            }
-        )
-        return {"status": "success", "message": "Payment successful"}
+        return {"message": "Bank transfer payment created successfully"}
     else:
-        await db.orders.update_one(
-            {"_id": ObjectId(order_id)},
-            {
-                "$set": {
-                    "payment_details.status": PaymentStatus.FAILED,
-                    "updated_at": datetime.utcnow()
-                }
-            }
-        )
-        return {"status": "failed", "message": "Payment failed"}
+        raise HTTPException(status_code=400, detail="Invalid payment method")
+
+
 
 @router.put("/{order_id}/cancel", response_model=Order)
 async def cancel_order(

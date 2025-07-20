@@ -1,3 +1,5 @@
+import os
+os.makedirs("app/static/uploads", exist_ok=True)
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles

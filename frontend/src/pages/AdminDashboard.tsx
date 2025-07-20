@@ -48,11 +48,6 @@ import {
   RestartAlt as ResetIcon,
   Analytics as AnalyticsIcon,
   Download as DownloadIcon,
-  Group as GroupIcon,
-  Upgrade as UpgradeIcon,
-  CheckCircle as ApproveIcon,
-  Cancel as DenyIcon,
-  FilterList as FilterIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { fetchWithAuth } from '../utils/api';
@@ -71,6 +66,7 @@ interface User {
   email: string;
   role: string;
   created_at: string;
+  membership?: string; // Added for the new dropdown
 }
 
 interface TopProduct {
@@ -80,6 +76,18 @@ interface TopProduct {
   revenue: number;
   image_url: string;
 }
+
+type MembershipUpgradeLog = {
+  _id: string;
+  user_id: string;
+  email: string;
+  old_membership: string;
+  new_membership: string;
+  price: number;
+  upgraded_at: string;
+  status: string;
+  payment_proof_url?: string;
+};
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -112,10 +120,24 @@ const AdminDashboard = () => {
   // Membership requests state
   const [pendingRequests, setPendingRequests] = useState<any[]>([]);
   const [pendingLoading, setPendingLoading] = useState(false);
+  const [membershipLogs, setMembershipLogs] = useState<MembershipUpgradeLog[]>([]);
+  const [logsLoading, setLogsLoading] = useState(false);
+  const [logsError, setLogsError] = useState<string | null>(null);
+
+  // Password reset requests state
+  const [passwordResetStats, setPasswordResetStats] = useState({
+    pending: 0,
+    completed: 0,
+    expired: 0,
+    total: 0,
+  });
+  const [passwordResetLoading, setPasswordResetLoading] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
     fetchPendingRequests();
+    fetchMembershipLogs();
+    fetchPasswordResetStats();
   }, []);
 
   const fetchDashboardData = async () => {
@@ -325,6 +347,40 @@ const AdminDashboard = () => {
     setSnackbar(prev => ({ ...prev, open: false }));
   };
 
+  const fetchMembershipLogs = async () => {
+    setLogsLoading(true);
+    setLogsError(null);
+    try {
+      const res = await fetchWithAuth(endpoints.admin.membershipRequests('all'));
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(errorText || 'Failed to fetch membership logs');
+      }
+      const data = await res.json();
+      setMembershipLogs(data);
+    } catch (err: any) {
+      setLogsError(err.message || 'Failed to fetch membership logs');
+      setMembershipLogs([]);
+    } finally {
+      setLogsLoading(false);
+    }
+  };
+
+  const fetchPasswordResetStats = async () => {
+    setPasswordResetLoading(true);
+    try {
+      const response = await fetchWithAuth(endpoints.admin.passwordResetStats);
+      if (response.ok) {
+        const data = await response.json();
+        setPasswordResetStats(data);
+      }
+    } catch (error) {
+      console.error('Error fetching password reset stats:', error);
+    } finally {
+      setPasswordResetLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
@@ -475,62 +531,94 @@ const AdminDashboard = () => {
               }
             />
             <Divider />
-            <List>
-              {users && users.length > 0 ? (
-                users.map((user) => (
-                  <ListItem
-                    key={user._id}
-                    secondaryAction={
-                      <Box>
-                        <IconButton
-                          edge="end"
-                          onClick={() => handleEditUser(user._id)}
-                          sx={{ mr: 1 }}
-                          title="Xem chi tiết"
-                        >
-                          <VisibilityIcon />
-                        </IconButton>
-                        <IconButton
-                          edge="end"
-                          onClick={() => handleDeleteUser(user._id)}
-                          color="error"
-                          title="Xóa người dùng"
-                        >
-                          <DeleteIcon />
-                        </IconButton>
-                      </Box>
-                    }
-                  >
-                    <ListItemAvatar>
-                      <Avatar>
-                        {user.full_name ? user.full_name.charAt(0).toUpperCase() : '?'}
-                      </Avatar>
-                    </ListItemAvatar>
-                    <ListItemText
-                      primary={user.full_name || 'Không có tên'}
-                      secondary={
-                        <>
-                          <Typography component="span" variant="body2" color="text.primary">
-                            {user.email || 'Không có email'}
-                          </Typography>
-                          <br />
-                          <Typography component="span" variant="body2" color="text.secondary">
-                            Vai trò: {user.role || 'Không xác định'} - Ngày tạo: {user.created_at ? new Date(user.created_at).toLocaleDateString() : 'Không xác định'}
-                          </Typography>
-                        </>
+            <Box sx={{ maxHeight: 400, overflow: 'auto' }}>
+              <List>
+                {users && users.length > 0 ? (
+                  users.map((user) => (
+                    <ListItem
+                      key={user._id}
+                      secondaryAction={
+                        <Box>
+                          <IconButton
+                            edge="end"
+                            onClick={() => handleEditUser(user._id)}
+                            sx={{ mr: 1 }}
+                            title="Xem chi tiết"
+                          >
+                            <VisibilityIcon />
+                          </IconButton>
+                          <IconButton
+                            edge="end"
+                            onClick={() => handleDeleteUser(user._id)}
+                            color="error"
+                            title="Xóa người dùng"
+                          >
+                            <DeleteIcon />
+                          </IconButton>
+                        </Box>
                       }
+                    >
+                      <ListItemAvatar>
+                        <Avatar>
+                          {user.full_name ? user.full_name.charAt(0).toUpperCase() : '?'}
+                        </Avatar>
+                      </ListItemAvatar>
+                      <ListItemText
+                        primary={user.full_name || 'Không có tên'}
+                        secondary={
+                          <>
+                            <Typography component="span" variant="body2" color="text.primary">
+                              {user.email || 'Không có email'}
+                            </Typography>
+                            <br />
+                            <Typography component="span" variant="body2" color="text.secondary">
+                              Vai trò: {user.role || 'Không xác định'} - Ngày tạo: {user.created_at ? new Date(user.created_at).toLocaleDateString() : 'Không xác định'}
+                            </Typography>
+                            <br />
+                            <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
+                              <Typography variant="body2" sx={{ mr: 1 }}>Membership:</Typography>
+                              <Select
+                                value={user.membership || 'free'}
+                                onChange={async (e) => {
+                                  const newMembership = e.target.value;
+                                  try {
+                                    const response = await fetchWithAuth(`${endpoints.admin.users}/${user._id}/membership`, {
+                                      method: 'PATCH',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({ membership: newMembership }),
+                                    });
+                                    if (response.ok) {
+                                      fetchDashboardData();
+                                    } else {
+                                      alert('Failed to update membership');
+                                    }
+                                  } catch (err) {
+                                    alert('Error updating membership');
+                                  }
+                                }}
+                                size="small"
+                                sx={{ minWidth: 100 }}
+                              >
+                                <MenuItem value="free">Free</MenuItem>
+                                <MenuItem value="gold">Gold</MenuItem>
+                                <MenuItem value="diamond">Diamond</MenuItem>
+                              </Select>
+                            </Box>
+                          </>
+                        }
+                      />
+                    </ListItem>
+                  ))
+                ) : (
+                  <ListItem>
+                    <ListItemText
+                      primary="Không có người dùng nào"
+                      secondary="Chưa có người dùng nào trong hệ thống"
                     />
                   </ListItem>
-                ))
-              ) : (
-                <ListItem>
-                  <ListItemText
-                    primary="Không có người dùng nào"
-                    secondary="Chưa có người dùng nào trong hệ thống"
-                  />
-                </ListItem>
-              )}
-            </List>
+                )}
+              </List>
+            </Box>
           </Card>
         </Grid>
 
@@ -549,61 +637,137 @@ const AdminDashboard = () => {
               }
             />
             <Divider />
-            <CardContent sx={{ p: 0 }}>
-              <List>
-                {topProducts.map((product) => (
-                  <React.Fragment key={product._id || product.name}>
-                    <ListItem
-                      secondaryAction={
-                        product._id ? (
-                          <IconButton
-                            edge="end"
-                            onClick={() => navigate(`/admin/products/${product._id}`)}
-                          >
-                            <VisibilityIcon />
-                          </IconButton>
-                        ) : null
-                      }
-                    >
-                      <ListItemAvatar>
-                        <Avatar src={product.image_url} alt={product.name} />
-                      </ListItemAvatar>
-                      <ListItemText
-                        primary={product.name}
-                        secondary={
-                          <>
-                            <Typography component="span" variant="body2">
-                              Đã bán: {product.total_sales}
-                            </Typography>
-                            <br />
-                            <Typography component="span" variant="body2" color="text.secondary">
-                              Doanh thu: {product.revenue.toLocaleString()}đ
-                            </Typography>
-                          </>
+            <Box sx={{ maxHeight: 400, overflow: 'auto' }}>
+              <CardContent sx={{ p: 0 }}>
+                <List>
+                  {topProducts.map((product) => (
+                    <React.Fragment key={product._id || product.name}>
+                      <ListItem
+                        secondaryAction={
+                          product._id ? (
+                            <IconButton
+                              edge="end"
+                              onClick={() => navigate(`/admin/products/${product._id}`)}
+                            >
+                              <VisibilityIcon />
+                            </IconButton>
+                          ) : null
                         }
-                      />
-                    </ListItem>
-                    <Divider />
-                  </React.Fragment>
-                ))}
-              </List>
+                      >
+                        <ListItemAvatar>
+                          <Avatar src={product.image_url} alt={product.name} />
+                        </ListItemAvatar>
+                        <ListItemText
+                          primary={product.name}
+                          secondary={
+                            <>
+                              <Typography component="span" variant="body2">
+                                Đã bán: {product.total_sales}
+                              </Typography>
+                              <br />
+                              <Typography component="span" variant="body2" color="text.secondary">
+                                Doanh thu: {product.revenue.toLocaleString()}đ
+                              </Typography>
+                            </>
+                          }
+                        />
+                      </ListItem>
+                      <Divider />
+                    </React.Fragment>
+                  ))}
+                </List>
+              </CardContent>
+            </Box>
+          </Card>
+        </Grid>
+
+        {/* Password Reset Requests */}
+        <Grid item xs={12} md={6}>
+          <Card>
+            <CardHeader
+              title="Yêu cầu đặt lại mật khẩu"
+              action={
+                <Button
+                  color="primary"
+                  onClick={() => navigate('/admin/password-reset-requests')}
+                >
+                  Xem tất cả
+                </Button>
+              }
+            />
+            <Divider />
+            <CardContent>
+              {passwordResetLoading ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
+                  <CircularProgress size={24} />
+                </Box>
+              ) : (
+                <Box>
+                  <Grid container spacing={2}>
+                    <Grid item xs={6}>
+                      <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'warning.light', borderRadius: 1 }}>
+                        <Typography variant="h4" color="warning.dark">
+                          {passwordResetStats.pending}
+                        </Typography>
+                        <Typography variant="body2" color="warning.dark">
+                          Chờ xử lý
+                        </Typography>
+                      </Box>
+                    </Grid>
+                    <Grid item xs={6}>
+                      <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'success.light', borderRadius: 1 }}>
+                        <Typography variant="h4" color="success.dark">
+                          {passwordResetStats.completed}
+                        </Typography>
+                        <Typography variant="body2" color="success.dark">
+                          Đã hoàn thành
+                        </Typography>
+                      </Box>
+                    </Grid>
+                    <Grid item xs={6}>
+                      <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'error.light', borderRadius: 1 }}>
+                        <Typography variant="h4" color="error.dark">
+                          {passwordResetStats.expired}
+                        </Typography>
+                        <Typography variant="body2" color="error.dark">
+                          Hết hạn
+                        </Typography>
+                      </Box>
+                    </Grid>
+                    <Grid item xs={6}>
+                      <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'info.light', borderRadius: 1 }}>
+                        <Typography variant="h4" color="info.dark">
+                          {passwordResetStats.total}
+                        </Typography>
+                        <Typography variant="body2" color="info.dark">
+                          Tổng cộng
+                        </Typography>
+                      </Box>
+                    </Grid>
+                  </Grid>
+                  {passwordResetStats.pending > 0 && (
+                    <Alert severity="warning" sx={{ mt: 2 }}>
+                      Có {passwordResetStats.pending} yêu cầu đặt lại mật khẩu đang chờ xử lý thủ công
+                    </Alert>
+                  )}
+                </Box>
+              )}
             </CardContent>
           </Card>
         </Grid>
 
-        {/* Membership Requests */}
-        <Grid item xs={12} md={8}>
+        {/* Membership Requests - REMOVED */}
+        {/* <Grid item xs={12} md={8}>
           <Card>
             <CardHeader
               avatar={<GroupIcon color="primary" />}
               title="Quản lý yêu cầu nâng cấp thành viên"
             />
             <CardContent>
-              {/* Membership Requests Panel (full logic/UI from AdminMembershipRequestsPage) */}
               <MembershipRequestsPanel />
             </CardContent>
           </Card>
-        </Grid>
+        </Grid> */}
       </Grid>
 
       {/* Revenue Management Menu */}
@@ -681,455 +845,94 @@ const AdminDashboard = () => {
           {snackbar.message}
         </Alert>
       </Snackbar>
-    </Container>
-  );
-};
 
-// Add the MembershipRequestsPanel component at the top of the file (can be in the same file for now)
-// MembershipRequestsPanel implementation (copy from AdminMembershipRequestsPage, but as a component)
-const MembershipRequestsPanel: React.FC = () => {
-  const [requests, setRequests] = useState<any[]>([]);
-  const [status, setStatus] = useState('pending');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [confirmDialog, setConfirmDialog] = useState<{
-    open: boolean;
-    type: 'approve' | 'deny' | null;
-    request: any | null;
-  }>({ open: false, type: null, request: null });
-  const [snackbar, setSnackbar] = useState<{
-    open: boolean;
-    message: string;
-    severity: 'success' | 'error' | 'info';
-  }>({ open: false, message: '', severity: 'info' });
-  const [selectedRequest, setSelectedRequest] = useState<any | null>(null);
-  const [detailDialog, setDetailDialog] = useState(false);
-
-  const fetchRequests = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      // Always fetch all requests, filter client-side
-      const url = endpoints.admin.membershipRequests('all');
-      const res = await fetch(url, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-      });
-      if (!res.ok) {
-        const errorText = await res.text();
-        throw new Error(`Failed to fetch requests: ${res.status} ${res.statusText}`);
-      }
-      const data = await res.json();
-      const validRequests = data.filter((req: any) => req.user_id && req.user_id !== 'undefined' && req.user_id !== 'null');
-      setRequests(validRequests);
-    } catch (err: any) {
-      setError(err.message || 'Failed to fetch requests');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { fetchRequests(); }, [status]);
-
-  const handleAction = async (type: 'approve' | 'deny', request: any) => {
-    setConfirmDialog({ open: true, type, request });
-  };
-
-  const confirmAction = async () => {
-    if (!confirmDialog.request || !confirmDialog.type) return;
-    const { request, type } = confirmDialog;
-    if (!request.request_id || request.request_id === 'undefined' || request.request_id === 'null') {
-      setSnackbar({
-        open: true,
-        message: 'Invalid request ID. Please refresh the page and try again.',
-        severity: 'error'
-      });
-      setConfirmDialog({ open: false, type: null, request: null });
-      return;
-    }
-    setActionLoading(request.request_id);
-    setConfirmDialog({ open: false, type: null, request: null });
-    try {
-      const endpoint = type === 'approve' 
-        ? endpoints.admin.approveMembershipRequest(request.request_id)
-        : endpoints.admin.denyMembershipRequest(request.request_id);
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-      });
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.detail || `Failed to ${type} request`);
-      }
-      setSnackbar({
-        open: true,
-        message: `Request ${type}d successfully!`,
-        severity: 'success'
-      });
-      fetchRequests();
-    } catch (err: any) {
-      setSnackbar({
-        open: true,
-        message: err.message || `Failed to ${type} request`,
-        severity: 'error'
-      });
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'pending': return 'warning';
-      case 'approved': return 'success';
-      case 'denied': return 'error';
-      default: return 'default';
-    }
-  };
-
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case 'pending': return 'Chờ duyệt';
-      case 'approved': return 'Đã duyệt';
-      case 'denied': return 'Từ chối';
-      default: return status;
-    }
-  };
-
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('vi-VN', {
-      style: 'currency',
-      currency: 'VND'
-    }).format(price);
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString('vi-VN', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  const handleViewDetails = (request: any) => {
-    setSelectedRequest(request);
-    setDetailDialog(true);
-  };
-
-  const stats = {
-    pending: requests.filter(r => r.status === 'pending').length,
-    approved: requests.filter(r => r.status === 'approved').length,
-    denied: requests.filter(r => r.status === 'denied').length,
-    total: requests.length
-  };
-
-  return (
-    <Box sx={{ p: 0 }}>
-      {/* Statistics Cards */}
-      <Grid container spacing={2} sx={{ mb: 2 }}>
-        <Grid item xs={6} sm={3}>
-          <Card sx={{ bgcolor: 'warning.light', color: 'warning.contrastText' }}>
-            <CardContent>
-              <Typography variant="h6">{stats.pending}</Typography>
-              <Typography variant="body2">Chờ duyệt</Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={6} sm={3}>
-          <Card sx={{ bgcolor: 'success.light', color: 'success.contrastText' }}>
-            <CardContent>
-              <Typography variant="h6">{stats.approved}</Typography>
-              <Typography variant="body2">Đã duyệt</Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={6} sm={3}>
-          <Card sx={{ bgcolor: 'error.light', color: 'error.contrastText' }}>
-            <CardContent>
-              <Typography variant="h6">{stats.denied}</Typography>
-              <Typography variant="body2">Từ chối</Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={6} sm={3}>
-          <Card sx={{ bgcolor: 'primary.light', color: 'primary.contrastText' }}>
-            <CardContent>
-              <Typography variant="h6">{stats.total}</Typography>
-              <Typography variant="body2">Tổng cộng</Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
-      {/* Filter */}
-      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, gap: 2 }}>
-        <FilterIcon color="action" />
-        <Select 
-          value={status} 
-          onChange={e => setStatus(e.target.value)} 
-          size="small"
-          sx={{ minWidth: 120 }}
-        >
-          <MenuItem value="pending">Chờ duyệt</MenuItem>
-          <MenuItem value="approved">Đã duyệt</MenuItem>
-          <MenuItem value="denied">Từ chối</MenuItem>
-        </Select>
-        <Typography variant="body2" color="text.secondary">
-          Hiển thị {requests.length} yêu cầu
+      {/* Membership Upgrade Log Section */}
+      <Box sx={{ mt: 6 }}>
+        <Typography variant="h6" gutterBottom>
+          Lịch sử nâng cấp thành viên
         </Typography>
-        <Button
-          variant="outlined"
-          startIcon={<RefreshIcon />}
-          onClick={fetchRequests}
-          disabled={loading}
-          size="small"
-        >
-          Làm mới
-        </Button>
+        {logsLoading ? (
+          <Box display="flex" justifyContent="center" my={2}>
+            <CircularProgress size={32} />
+          </Box>
+        ) : logsError ? (
+          <Alert severity="error" sx={{ mb: 2 }}>{logsError}</Alert>
+        ) : (
+          <Box sx={{ maxHeight: 500, overflow: 'auto' }}>
+            <TableContainer component={Paper} elevation={1} sx={{ mb: 2 }}>
+              <Table size="small" stickyHeader>
+                <TableHead>
+                  <TableRow sx={{ bgcolor: 'primary.main' }}>
+                    <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Email</TableCell>
+                    <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Từ</TableCell>
+                    <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Đến</TableCell>
+                    <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Giá</TableCell>
+                    <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Ngày nâng cấp</TableCell>
+                    <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Chứng minh thanh toán</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {membershipLogs.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} align="center">
+                        Không có lịch sử nâng cấp nào.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    membershipLogs.map((log) => (
+                      <TableRow key={log._id} hover>
+                        <TableCell>{log.email}</TableCell>
+                        <TableCell>
+                          <Chip label={log.old_membership?.toUpperCase()} size="small" variant="outlined" color="default" />
+                        </TableCell>
+                        <TableCell>
+                          <Chip label={log.new_membership?.toUpperCase()} size="small" color="primary" />
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2" fontWeight="bold" color="primary">
+                            {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(log.price)}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2">
+                            {new Date(log.upgraded_at).toLocaleString('vi-VN', {
+                              year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'
+                            })}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          {log.payment_proof_url ? (
+                            <Typography 
+                              variant="body2" 
+                              color="primary" 
+                              sx={{ 
+                                textDecoration: 'underline', 
+                                cursor: 'pointer',
+                                '&:hover': { color: 'primary.dark' }
+                              }}
+                              onClick={() => {
+                                // Construct the full URL by adding the backend base URL
+                                const backendBaseUrl = process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:8000';
+                                const fullUrl = `${backendBaseUrl}${log.payment_proof_url}`;
+                                window.open(fullUrl, '_blank');
+                              }}
+                            >
+                              Xem ảnh chuyển khoản
+                            </Typography>
+                          ) : (
+                            <Typography variant="body2" color="text.secondary">Không có</Typography>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Box>
+        )}
       </Box>
-      {loading ? (
-        <Box display="flex" justifyContent="center" my={2}>
-          <CircularProgress size={32} />
-        </Box>
-      ) : error ? (
-        <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>
-      ) : requests.length === 0 ? (
-        <Card>
-          <CardContent sx={{ textAlign: 'center', py: 2 }}>
-            <Typography variant="body2" color="text.secondary">
-              Không có yêu cầu nâng cấp thành viên nào với trạng thái "{getStatusLabel(status)}"
-            </Typography>
-          </CardContent>
-        </Card>
-      ) : (
-        <TableContainer component={Paper} elevation={1} sx={{ mb: 2 }}>
-          <Table size="small">
-            <TableHead>
-              <TableRow sx={{ bgcolor: 'primary.main' }}>
-                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Email</TableCell>
-                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Từ</TableCell>
-                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Đến</TableCell>
-                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Giá</TableCell>
-                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Trạng thái</TableCell>
-                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Ngày tạo</TableCell>
-                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Thao tác</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {requests.filter(r => r.status === status).map(req => (
-                <TableRow key={req.request_id} hover>
-                  <TableCell>{req.email}</TableCell>
-                  <TableCell>
-                    <Chip 
-                      label={req.old_membership?.toUpperCase()} 
-                      size="small" 
-                      variant="outlined"
-                      color="default"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Chip 
-                      label={req.new_membership?.toUpperCase()} 
-                      size="small" 
-                      color="primary"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2" fontWeight="bold" color="primary">
-                      {formatPrice(req.price)}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Chip 
-                      label={getStatusLabel(req.status)}
-                      color={getStatusColor(req.status) as any}
-                      size="small"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2">
-                      {formatDate(req.upgraded_at)}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Box sx={{ display: 'flex', gap: 1 }}>
-                      <Tooltip title="Xem chi tiết">
-                        <IconButton 
-                          size="small" 
-                          onClick={() => handleViewDetails(req)}
-                          color="primary"
-                        >
-                          <VisibilityIcon />
-                        </IconButton>
-                      </Tooltip>
-                      {req.status === 'pending' && (
-                        <>
-                          <Tooltip title="Duyệt yêu cầu">
-                            <IconButton
-                              size="small"
-                              color="success"
-                              disabled={actionLoading === req.request_id}
-                              onClick={() => handleAction('approve', req)}
-                            >
-                              <ApproveIcon />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="Từ chối yêu cầu">
-                            <IconButton
-                              size="small"
-                              color="error"
-                              disabled={actionLoading === req.request_id}
-                              onClick={() => handleAction('deny', req)}
-                            >
-                              <DenyIcon />
-                            </IconButton>
-                          </Tooltip>
-                        </>
-                      )}
-                    </Box>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      )}
-      {/* Confirmation Dialog */}
-      <Dialog open={confirmDialog.open} onClose={() => setConfirmDialog({ open: false, type: null, request: null })}>
-        <DialogTitle>
-          {confirmDialog.type === 'approve' ? 'Duyệt yêu cầu' : 'Từ chối yêu cầu'}
-        </DialogTitle>
-        <DialogContent>
-          <Typography>
-            Bạn có chắc chắn muốn {confirmDialog.type === 'approve' ? 'duyệt' : 'từ chối'} yêu cầu nâng cấp thành viên của{' '}
-            <strong>{confirmDialog.request?.email}</strong>?
-          </Typography>
-          {confirmDialog.request && (
-            <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
-              <Typography variant="body2">
-                <strong>Từ:</strong> {confirmDialog.request.old_membership?.toUpperCase()}
-              </Typography>
-              <Typography variant="body2">
-                <strong>Đến:</strong> {confirmDialog.request.new_membership?.toUpperCase()}
-              </Typography>
-              <Typography variant="body2">
-                <strong>Giá:</strong> {formatPrice(confirmDialog.request.price)}
-              </Typography>
-            </Box>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setConfirmDialog({ open: false, type: null, request: null })}>
-            Hủy
-          </Button>
-          <Button 
-            onClick={confirmAction}
-            variant="contained"
-            color={confirmDialog.type === 'approve' ? 'success' : 'error'}
-            disabled={actionLoading === confirmDialog.request?._id}
-          >
-            {actionLoading === confirmDialog.request?._id ? (
-              <CircularProgress size={20} />
-            ) : (
-              confirmDialog.type === 'approve' ? 'Duyệt' : 'Từ chối'
-            )}
-          </Button>
-        </DialogActions>
-      </Dialog>
-      {/* Detail Dialog */}
-      <Dialog 
-        open={detailDialog} 
-        onClose={() => setDetailDialog(false)}
-        maxWidth="md"
-        fullWidth
-      >
-        <DialogTitle>
-          Chi tiết yêu cầu nâng cấp thành viên
-        </DialogTitle>
-        <DialogContent>
-          {selectedRequest && (
-            <Grid container spacing={3}>
-              <Grid item xs={12} md={6}>
-                <Typography variant="h6" gutterBottom>Thông tin người dùng</Typography>
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="body2" color="text.secondary">Email:</Typography>
-                  <Typography variant="body1">{selectedRequest.email}</Typography>
-                </Box>
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="body2" color="text.secondary">ID người dùng:</Typography>
-                  <Typography variant="body1" fontFamily="monospace">{selectedRequest._id}</Typography>
-                </Box>
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <Typography variant="h6" gutterBottom>Thông tin nâng cấp</Typography>
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="body2" color="text.secondary">Từ hạng:</Typography>
-                  <Chip label={selectedRequest.old_membership?.toUpperCase()} variant="outlined" />
-                </Box>
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="body2" color="text.secondary">Đến hạng:</Typography>
-                  <Chip label={selectedRequest.new_membership?.toUpperCase()} color="primary" />
-                </Box>
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="body2" color="text.secondary">Giá:</Typography>
-                  <Typography variant="h6" color="primary" fontWeight="bold">
-                    {formatPrice(selectedRequest.price)}
-                  </Typography>
-                </Box>
-              </Grid>
-              <Grid item xs={12}>
-                <Divider sx={{ my: 2 }} />
-                <Typography variant="h6" gutterBottom>Chứng minh thanh toán</Typography>
-                {selectedRequest.payment_proof_url ? (
-                  <Box sx={{ textAlign: 'center' }}>
-                    <img 
-                      src={selectedRequest.payment_proof_url} 
-                      alt="Payment proof" 
-                      style={{ 
-                        maxWidth: '100%', 
-                        maxHeight: '400px', 
-                        objectFit: 'contain',
-                        border: '1px solid #ddd',
-                        borderRadius: '8px'
-                      }} 
-                    />
-                    <Box sx={{ mt: 2 }}>
-                      <Button
-                        variant="outlined"
-                        startIcon={<DownloadIcon />}
-                        onClick={() => window.open(selectedRequest.payment_proof_url, '_blank')}
-                      >
-                        Xem ảnh gốc
-                      </Button>
-                    </Box>
-                  </Box>
-                ) : (
-                  <Typography color="text.secondary">Không có chứng minh thanh toán</Typography>
-                )}
-              </Grid>
-            </Grid>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDetailDialog(false)}>Đóng</Button>
-        </DialogActions>
-      </Dialog>
-      {/* Snackbar */}
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={6000}
-        onClose={() => setSnackbar({ ...snackbar, open: false })}
-      >
-        <Alert 
-          onClose={() => setSnackbar({ ...snackbar, open: false })} 
-          severity={snackbar.severity}
-          sx={{ width: '100%' }}
-        >
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
-    </Box>
+    </Container>
   );
 };
 

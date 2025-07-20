@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Container,
@@ -57,7 +57,8 @@ const CheckoutPage = () => {
   const navigate = useNavigate();
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [shippingAddress, setShippingAddress] = useState(user?.shipping_address || '');
+  const [shippingAddress, setShippingAddress] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: '',
@@ -65,6 +66,18 @@ const CheckoutPage = () => {
   });
 
   const selectedItems = getSelectedItems();
+
+  // Update shipping address and phone number when user data is available
+  useEffect(() => {
+    if (user) {
+      if (user.shipping_address && !shippingAddress) {
+        setShippingAddress(user.shipping_address);
+      }
+      if (user.phone && !phoneNumber) {
+        setPhoneNumber(user.phone);
+      }
+    }
+  }, [user, shippingAddress, phoneNumber]);
 
   if (!isAuthenticated) {
     navigate('/login');
@@ -129,8 +142,47 @@ const CheckoutPage = () => {
       return;
     }
 
+    if (!phoneNumber.trim()) {
+      setSnackbar({
+        open: true,
+        message: 'Vui lòng nhập số điện thoại',
+        severity: 'error'
+      });
+      return;
+    }
+
+    // Basic phone number validation
+    const phoneRegex = /^[0-9]{10,11}$/;
+    if (!phoneRegex.test(phoneNumber.replace(/\s/g, ''))) {
+      setSnackbar({
+        open: true,
+        message: 'Số điện thoại không hợp lệ. Vui lòng nhập số điện thoại 10-11 chữ số',
+        severity: 'error'
+      });
+      return;
+    }
+
     try {
       setIsProcessing(true);
+      
+      // Update user profile with new address if it's different from the current one
+      if (shippingAddress.trim() !== (user?.shipping_address || '').trim()) {
+        try {
+          await fetchWithAuth(endpoints.auth.updateProfile, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              name: user?.name,
+              shipping_address: shippingAddress.trim(),
+            }),
+          });
+        } catch (error) {
+          console.error('Failed to update profile address:', error);
+          // Continue with order creation even if profile update fails
+        }
+      }
       // Create order
       const orderResponse = await fetchWithAuth(endpoints.orders.create, {
         method: 'POST',
@@ -147,6 +199,7 @@ const CheckoutPage = () => {
           })),
           total_price: selectedItems.reduce((total, item) => total + (item.product_price * item.quantity), 0) + 30000,
           shipping_address: shippingAddress,
+          phone_number: phoneNumber,
           status: 'pending'
         }),
       });
@@ -165,22 +218,15 @@ const CheckoutPage = () => {
             order: orderData,
             bankDetails: {
               bankName: 'Vietcombank',
-              accountNumber: '1234567890',
-              accountHolder: 'CÔNG TY TNHH FLASHION',
+              accountNumber: '0631000524772',
+              accountHolder: 'PHAM DANG KHOI',
               amount: orderData.total_price,
               orderId: orderData._id
             }
-          }
-        });
-      } else {
-        // For other payment methods (currently disabled)
-        setSnackbar({
-          open: true,
-          message: 'Phương thức thanh toán này đang được triển khai',
-          severity: 'info'
-        });
-      }
-    } catch (error) {
+                      }
+          });
+        }
+      } catch (error) {
       console.error('Payment error:', error);
       setSnackbar({
         open: true,
@@ -237,6 +283,11 @@ const CheckoutPage = () => {
                     <Typography variant="body2" color="text.secondary">
                       Số lượng: {item.quantity}
                     </Typography>
+                    {item.color && (
+                      <Typography variant="body2" color="text.secondary">
+                        Màu sắc: {item.color}
+                      </Typography>
+                    )}
                     <Typography variant="body2" color="text.secondary">
                       Đơn giá: {item.product_price.toLocaleString()}đ
                     </Typography>
@@ -258,13 +309,21 @@ const CheckoutPage = () => {
                 </Typography>
                 <TextField
                   fullWidth
+                  label="Số điện thoại"
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  placeholder="Nhập số điện thoại liên hệ"
+                  sx={{ mb: 2 }}
+                />
+                <TextField
+                  fullWidth
                   multiline
                   rows={3}
                   label="Địa chỉ giao hàng"
                   value={shippingAddress}
                   onChange={(e) => setShippingAddress(e.target.value)}
                   placeholder="Nhập địa chỉ giao hàng của bạn"
-                  sx={{ mt: 2 }}
+                  helperText={user?.shipping_address ? "Địa chỉ được lấy từ hồ sơ cá nhân. Chỉnh sửa sẽ tự động cập nhật hồ sơ." : "Địa chỉ bạn nhập sẽ được lưu vào hồ sơ cá nhân để sử dụng lần sau."}
                 />
               </Box>
             </Box>
@@ -281,46 +340,8 @@ const CheckoutPage = () => {
                   value={selectedPaymentMethod}
                   onChange={(e) => setSelectedPaymentMethod(e.target.value)}
                 >
-                  <FormControlLabel
-                    value="momo"
-                    control={<Radio />}
-                    label={
-                      <PaymentMethodButton
-                        variant="outlined"
-                        onClick={() => setSelectedPaymentMethod('momo')}
-                        disabled
-                      >
-                        <Box sx={{ display: 'flex', alignItems: 'center', opacity: 0.6 }}>
-                          <img
-                            src="/images/momo.png"
-                            alt="MoMo"
-                            style={{ height: 24, marginRight: 8 }}
-                          />
-                          <Typography>Ví MoMo (Đang triển khai)</Typography>
-                        </Box>
-                      </PaymentMethodButton>
-                    }
-                  />
-                  <FormControlLabel
-                    value="vnpay"
-                    control={<Radio />}
-                    label={
-                      <PaymentMethodButton
-                        variant="outlined"
-                        onClick={() => setSelectedPaymentMethod('vnpay')}
-                        disabled
-                      >
-                        <Box sx={{ display: 'flex', alignItems: 'center', opacity: 0.6 }}>
-                          <img
-                            src="/images/vnpay.png"
-                            alt="VNPay"
-                            style={{ height: 24, marginRight: 8 }}
-                          />
-                          <Typography>VNPay (Đang triển khai)</Typography>
-                        </Box>
-                      </PaymentMethodButton>
-                    }
-                  />
+
+
                   <FormControlLabel
                     value="bank_transfer"
                     control={<Radio />}
@@ -341,7 +362,7 @@ const CheckoutPage = () => {
                             Chủ tài khoản: PHAM DANG KHOI
                           </Typography>
                           <Typography variant="body2" color="text.secondary">
-                            Nội dung chuyển khoản: Email Flashion (Xuất hiện ở thông tin cá nhân) + Số điện thoại
+                            Nội dung chuyển khoản: FLASHION + Tên khách hàng + Số điện thoại
                           </Typography>
                         </Box>
                       </PaymentMethodButton>

@@ -125,7 +125,7 @@ const HomePage = () => {
   const handleAddToCart = async (productId: string, name: string, e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent card click when clicking the button
     try {
-      await addToCart(productId, 1);
+      await addToCart(productId, 1, undefined, undefined);
       setSnackbar({ 
         open: true, 
         message: `Added ${name} to cart!`, 
@@ -580,13 +580,13 @@ const HomePage = () => {
                 kênh nào mà bạn có thể trao đổi
               </Typography>
               <Box sx={{ mb: 1 }}>
-                <span role="img" aria-label="address">📍</span> Địa chỉ của chúng tôi
+                <span role="img" aria-label="address">📍</span> 7 Đ. D1, Long Thạnh Mỹ, Thủ Đức, Hồ Chí Minh
               </Box>
               <Box sx={{ mb: 1 }}>
                 <span role="img" aria-label="email">✉️</span> flashion@fpt.vn
               </Box>
               <Box sx={{ mb: 2 }}>
-                <span role="img" aria-label="phone">📞</span> 0123456789
+                <span role="img" aria-label="phone">📞</span> 0819994722
               </Box>
               <Box sx={{ mb: 2 }}>
                 <Box sx={{
@@ -598,7 +598,7 @@ const HomePage = () => {
                 <Box sx={{
                   display: 'flex', alignItems: 'center', bgcolor: '#fff', borderRadius: 3, p: 1, width: 300
                 }}>
-                  <Typography fontWeight={600} sx={{ flex: 1 }}>Gọi ngay Hotline<br />0123456789</Typography>
+                  <Typography fontWeight={600} sx={{ flex: 1 }}>Gọi ngay Hotline<br />0819994722</Typography>
                   <Box component="img" src="/images/hotline.png" alt="Hotline" sx={{ width: 32, height: 32, ml: 2 }} />
                 </Box>
               </Box>
