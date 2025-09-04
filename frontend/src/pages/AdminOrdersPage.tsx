@@ -32,9 +32,16 @@ interface OrderItem {
   price: number;
 }
 
+interface OrderUser {
+  _id: string;
+  full_name: string;
+  email: string;
+}
+
 interface Order {
   _id: string;
   user_id: string;
+  user: OrderUser;
   items: OrderItem[];
   total_price: number;
   shipping_address: string;
@@ -43,11 +50,7 @@ interface Order {
   updated_at: string;
 }
 
-interface PaginatedOrdersResponse {
-  orders: Order[];
-  total: number;
-  has_more: boolean;
-}
+
 
 const AdminOrdersPage = () => {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -78,19 +81,19 @@ const AdminOrdersPage = () => {
   const fetchOrders = async (pageNum: number = 1) => {
     try {
       const skip = (pageNum - 1) * 10;
-      const response = await fetchWithAuth(`${endpoints.orders.list}?skip=${skip}&limit=10`);
+      const response = await fetchWithAuth(`${endpoints.admin.orders}?skip=${skip}&limit=10`);
       if (!response.ok) {
         throw new Error('Failed to fetch orders');
       }
-      const data: PaginatedOrdersResponse = await response.json();
+      const data: Order[] = await response.json();
       
       if (pageNum === 1) {
-        setOrders(data.orders);
+        setOrders(data);
       } else {
-        setOrders(prevOrders => [...prevOrders, ...data.orders]);
+        setOrders(prevOrders => [...prevOrders, ...data]);
       }
       
-      setHasMore(data.has_more);
+      setHasMore(data.length === 10); // If we got 10 items, there might be more
       setLoading(false);
       setLoadingMore(false);
     } catch (error) {
@@ -204,7 +207,7 @@ const AdminOrdersPage = () => {
             <TableHead>
               <TableRow>
                 <TableCell>Mã đơn hàng</TableCell>
-                <TableCell>Mã người dùng</TableCell>
+                <TableCell>Người dùng</TableCell>
                 <TableCell>Tổng tiền</TableCell>
                 <TableCell>Trạng thái</TableCell>
                 <TableCell>Ngày đặt</TableCell>
@@ -218,7 +221,16 @@ const AdminOrdersPage = () => {
                   ref={index === orders.length - 1 ? lastOrderElementRef : null}
                 >
                   <TableCell>{order._id}</TableCell>
-                  <TableCell>{order.user_id}</TableCell>
+                  <TableCell>
+                    <Box>
+                      <Typography variant="body2" fontWeight="medium">
+                        {order.user?.full_name || 'Unknown User'}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {order.user?.email || 'No email'}
+                      </Typography>
+                    </Box>
+                  </TableCell>
                   <TableCell>{order.total_price.toLocaleString()}đ</TableCell>
                   <TableCell>
                     <Chip
@@ -290,7 +302,7 @@ const AdminOrdersPage = () => {
                 Mã đơn hàng: {selectedOrder._id}
               </Typography>
               <Typography variant="subtitle1" gutterBottom>
-                Mã người dùng: {selectedOrder.user_id}
+                Người dùng: {selectedOrder.user?.full_name || 'Unknown User'} ({selectedOrder.user?.email || 'No email'})
               </Typography>
               <Typography variant="subtitle1" gutterBottom>
                 Địa chỉ giao hàng: {selectedOrder.shipping_address}

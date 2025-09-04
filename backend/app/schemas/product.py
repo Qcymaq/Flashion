@@ -35,6 +35,7 @@ class PyObjectId(str):
 
 class ProductBase(BaseModel):
     name: str
+    summary: Optional[str] = None
     description: Optional[str] = None
     price: float
     category: str

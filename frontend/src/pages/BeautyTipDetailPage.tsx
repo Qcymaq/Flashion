@@ -176,7 +176,20 @@ const BeautyTipDetailPage = () => {
         <Grid item xs={12} md={8}>
           <Box>
             {/* Header */}
-            <Chip label={tip.category} color="primary" sx={{ mb: 2 }} />
+            {tip.category && (
+              <Chip 
+                label={tip.category} 
+                color="primary" 
+                sx={{ 
+                  mb: 2,
+                  bgcolor: '#000',
+                  color: '#fff',
+                  '& .MuiChip-label': {
+                    color: '#fff'
+                  }
+                }} 
+              />
+            )}
             <Typography variant="h3" fontWeight={700} sx={{ mb: 2 }}>
               {tip.title}
             </Typography>

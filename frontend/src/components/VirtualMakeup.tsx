@@ -15,10 +15,15 @@ import {
   CardMedia,
   CardContent,
   Alert,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { ColorResult, SketchPicker } from 'react-color';
 import { Camera, Upload, X, ShoppingCart } from 'lucide-react';
+import { ErrorOutline } from '@mui/icons-material';
 import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
 import UpgradeMembershipModal from './UpgradeMembershipModal';
@@ -46,7 +51,7 @@ const ColorPickerContainer = styled(Box)({
   marginBottom: '1rem',
 });
 
-const API_URL = 'http://localhost:8000/api';
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
 
 interface VirtualMakeupProps {
   productId?: string;
@@ -83,6 +88,7 @@ const VirtualMakeup: React.FC<VirtualMakeupProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [cartMessage, setCartMessage] = useState<string | null>(null);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const [errorDialogOpen, setErrorDialogOpen] = useState(false);
   
   const { addToCart } = useCart();
   const { isAuthenticated, refreshUser } = useAuth();
@@ -130,6 +136,12 @@ const VirtualMakeup: React.FC<VirtualMakeupProps> = ({
     if (newMode !== null) {
       setInputMode(newMode);
       if (newMode === 'camera') {
+        // Check if camera is supported before trying to start
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          setError('Camera access is not supported in this browser or requires HTTPS. Vui lòng sử dụng chế độ tải ảnh.');
+          setInputMode('upload');
+          return;
+        }
         startCamera();
       } else {
         stopCamera();
@@ -139,6 +151,11 @@ const VirtualMakeup: React.FC<VirtualMakeupProps> = ({
 
   const startCamera = async () => {
     try {
+      // Check if mediaDevices is supported
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Camera access is not supported in this browser or requires HTTPS');
+      }
+      
       const stream = await navigator.mediaDevices.getUserMedia({ 
         video: { 
           facingMode: 'user',
@@ -153,7 +170,9 @@ const VirtualMakeup: React.FC<VirtualMakeupProps> = ({
       }
     } catch (error) {
       console.error('Error accessing camera:', error);
-      // You might want to show an error message to the user here
+      setError('Không thể truy cập camera. Vui lòng sử dụng HTTPS hoặc tải ảnh lên thay thế.');
+      // Fallback to upload mode
+      setInputMode('upload');
     }
   };
 
@@ -184,6 +203,13 @@ const VirtualMakeup: React.FC<VirtualMakeupProps> = ({
 
   const handleImageUpload = async (formData: FormData) => {
     try {
+      // Check if user is authenticated
+      const token = localStorage.getItem('token');
+      if (!token) {
+        showErrorPopup('Vui lòng đăng nhập để sử dụng tính năng thử đồ ảo.');
+        return;
+      }
+
       setLoading(true);
       setError(null);
       
@@ -195,11 +221,17 @@ const VirtualMakeup: React.FC<VirtualMakeupProps> = ({
         body: formData,
         headers: {
           'Accept': 'image/jpeg',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${token}`,
         },
       });
 
       if (!response.ok) {
+        // Check for authentication error
+        if (response.status === 401) {
+          showErrorPopup('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+          return;
+        }
+        
         // Check for try-on limit exceeded
         if (response.status === 403) {
           const errorData = await response.json().catch(() => null);
@@ -232,10 +264,15 @@ const VirtualMakeup: React.FC<VirtualMakeupProps> = ({
         return;
       }
       
-      setError('Không thể xử lý ảnh. Vui lòng thử lại.');
+      showErrorPopup('Không thể xử lý ảnh. Vui lòng thử lại.');
     } finally {
       setLoading(false);
     }
+  };
+
+  const showErrorPopup = (message: string) => {
+    setError(message);
+    setErrorDialogOpen(true);
   };
 
   const handleReset = () => {
@@ -250,6 +287,7 @@ const VirtualMakeup: React.FC<VirtualMakeupProps> = ({
     setCheeksIntensity(35);
     setMakeupType('both');
     setError(null);
+    setErrorDialogOpen(false);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -716,6 +754,38 @@ const VirtualMakeup: React.FC<VirtualMakeupProps> = ({
           </Grid>
         )}
       </Grid>
+      
+      {/* Error Dialog */}
+      <Dialog
+        open={errorDialogOpen}
+        onClose={() => setErrorDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ 
+          backgroundColor: '#f44336', 
+          color: 'white',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1
+        }}>
+          <ErrorOutline />
+          Lỗi
+        </DialogTitle>
+        <DialogContent sx={{ pt: 2 }}>
+          <Typography>{error}</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button 
+            onClick={() => setErrorDialogOpen(false)}
+            variant="contained"
+            color="primary"
+          >
+            Đóng
+          </Button>
+        </DialogActions>
+      </Dialog>
+      
       <UpgradeMembershipModal open={upgradeOpen} onClose={() => setUpgradeOpen(false)} user={null} />
     </Container>
   );

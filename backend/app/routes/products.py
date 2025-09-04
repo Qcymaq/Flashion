@@ -9,6 +9,11 @@ from app.schemas.user import User
 
 router = APIRouter()
 
+def make_https_url(path: str) -> str:
+    if path.startswith("http"):
+        return path
+    return f"https://flashion.xyz{path}"
+
 # Public endpoints - no authentication required
 @router.get("/", response_model=ProductList)
 async def get_products(
@@ -46,10 +51,11 @@ async def get_products(
             {
                 "_id": str(product["_id"]),
                 "name": product["name"],
+                "summary": product.get("summary", ""),
                 "description": product["description"],
                 "price": product["price"],
                 "category": product["category"],
-                "images": product["images"],
+                "images": [make_https_url(img) for img in product["images"]],
                 "sizes": product.get("sizes", []),
                 "colors": product["colors"],
                 "stock": product["stock"],
@@ -91,7 +97,7 @@ async def search_products(q: str, limit: int = 10):
             "description": product["description"],
             "price": product["price"],
             "category": product["category"],
-            "images": product["images"],
+            "images": [make_https_url(img) for img in product["images"]],
             "sizes": product.get("sizes", []),
             "colors": product["colors"],
             "stock": product["stock"],
@@ -122,10 +128,11 @@ async def get_product(product_id: str):
     return {
         "_id": str(product["_id"]),
         "name": product["name"],
+        "summary": product.get("summary", ""),
         "description": product["description"],
         "price": product["price"],
         "category": product["category"],
-        "images": product["images"],
+        "images": [make_https_url(img) for img in product["images"]],
         "colors": product["colors"],
         "stock": product["stock"],
         "is_active": product["is_active"],
@@ -152,10 +159,11 @@ async def create_product(
     return {
         "_id": str(created_product["_id"]),
         "name": created_product["name"],
+        "summary": created_product.get("summary", ""),
         "description": created_product["description"],
         "price": created_product["price"],
         "category": created_product["category"],
-        "images": created_product["images"],
+        "images": [make_https_url(img) for img in created_product["images"]],
         "colors": created_product["colors"],
         "stock": created_product["stock"],
         "is_active": created_product["is_active"],

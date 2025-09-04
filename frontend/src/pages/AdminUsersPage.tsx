@@ -298,7 +298,7 @@ const AdminUsersPage: React.FC = () => {
                     onChange={async (e) => {
                       const newMembership = e.target.value;
                       try {
-                        const response = await fetchWithAuth(`${endpoints.admin.users}/${user._id}/membership`, {
+                        const response = await fetchWithAuth(`${endpoints.admin.users}${user._id}/membership/`, {
                           method: 'PATCH',
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({ membership: newMembership }),

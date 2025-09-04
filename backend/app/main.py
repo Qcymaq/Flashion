@@ -6,12 +6,16 @@ from fastapi.staticfiles import StaticFiles
 from app.routes import auth, products, cart, orders, upload, admin, reports, virtual_makeup, consultation, beauty_tips, reviews
 from app.utils.database import connect_to_mongo, close_mongo_connection
 
-app = FastAPI(title="Flashion API")
+app = FastAPI(
+    title="Flashion API",
+    docs_url="/api/docs",
+    openapi_url="/api/openapi.json"
+)
 
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],  # Frontend URLs
+    allow_origins=os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(","),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

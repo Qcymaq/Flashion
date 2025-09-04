@@ -34,7 +34,7 @@ async def get_cart(current_user: User = Depends(get_current_user)):
     
     return Cart(**cart)
 
-@router.post("/items", response_model=Cart)
+@router.post("/items/", response_model=Cart)
 async def add_to_cart(
     item: CartItemCreate,
     current_user: User = Depends(get_current_user)

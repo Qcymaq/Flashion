@@ -49,6 +49,7 @@ import { useNavigate } from 'react-router-dom';
 interface Product {
   _id: string;
   name: string;
+  summary?: string;
   description: string;
   price: number;
   category: string;
@@ -63,6 +64,7 @@ interface Product {
 
 interface ProductFormData {
   name: string;
+  summary: string;
   description: string;
   price: number;
   category: string;
@@ -76,6 +78,7 @@ type ArrayField = 'images' | 'colors';
 
 const initialFormData: ProductFormData = {
   name: '',
+  summary: '',
   description: '',
   price: 0,
   category: '',
@@ -112,7 +115,8 @@ const formatVND = (price: number) => {
   return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
 };
 
-const BACKEND_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+// Use HTTPS and your domain for production
+const BACKEND_BASE_URL = process.env.REACT_APP_API_URL || 'https://flashion.xyz';
 
 const getImageUrl = (img: string | undefined) => {
   if (!img) return '/images/placeholder.png';
@@ -194,6 +198,7 @@ const AdminProductsPage = () => {
       setSelectedProduct(product);
       setFormData({
         name: product.name,
+        summary: product.summary || '',
         description: product.description,
         price: product.price,
         category: product.category,
@@ -264,7 +269,7 @@ const AdminProductsPage = () => {
     try {
       const productData = {
         ...formData,
-        price: Math.round(parseFloat(formData.price.toString())), // VND, no cents
+        price: Math.round(Number(formData.price)), // VND, no cents
         stock: parseInt(formData.stock.toString()),
         images: formData.images.filter(url => url.trim() !== ''),
         colors: formData.colors.filter(color => color.trim() !== '')
@@ -743,16 +748,29 @@ const AdminProductsPage = () => {
                 sx={{ backgroundColor: '#fff' }}
               />
               <TextField
+                name="summary"
+                label="Summary (Brief description for main display)"
+                value={formData.summary}
+                onChange={handleInputChange}
+                fullWidth
+                multiline
+                rows={2}
+                variant="outlined"
+                sx={{ backgroundColor: '#fff' }}
+                helperText="A brief summary that will be shown in the main product display"
+              />
+              <TextField
                 name="description"
-                label="Description"
+                label="Description (Detailed information)"
                 value={formData.description}
                 onChange={handleInputChange}
                 fullWidth
                 multiline
-                rows={3}
+                rows={4}
                 required
                 variant="outlined"
                 sx={{ backgroundColor: '#fff' }}
+                helperText="Detailed product description that will be shown in the product details tab"
               />
               <TextField
                 fullWidth
@@ -761,7 +779,7 @@ const AdminProductsPage = () => {
                 value={formData.price}
                 onChange={(e) => setFormData(prev => ({
                   ...prev,
-                  price: parseFloat(e.target.value) || 0
+                  price: Number(e.target.value) || 0
                 }))}
                 InputProps={{
                   startAdornment: <InputAdornment position="start">₫</InputAdornment>,

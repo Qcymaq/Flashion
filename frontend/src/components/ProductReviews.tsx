@@ -84,15 +84,13 @@ const ProductReviews: React.FC<ProductReviewsProps> = ({ productId, productName 
       setLoading(true);
       const reviewsData = await getProductReviews(productId, page, limit, sortBy, 'desc');
       setReviews(reviewsData);
-      // For simplicity, we'll assume we have total pages based on the limit
-      // In a real app, you'd get this from the API response
-      setTotalPages(Math.ceil((stats?.total_reviews || 0) / limit));
+      // Remove setTotalPages from here
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch reviews');
     } finally {
       setLoading(false);
     }
-  }, [productId, page, sortBy, stats]);
+  }, [productId, page, sortBy]); // Removed 'stats' from dependencies
 
   const fetchStats = useCallback(async () => {
     try {
@@ -102,6 +100,11 @@ const ProductReviews: React.FC<ProductReviewsProps> = ({ productId, productName 
       console.error('Failed to fetch review stats:', err);
     }
   }, [productId]);
+
+  // Add a separate useEffect to update totalPages when stats changes
+  useEffect(() => {
+    setTotalPages(Math.ceil((stats?.total_reviews || 0) / limit));
+  }, [stats]);
 
   useEffect(() => {
     fetchReviews();
@@ -307,13 +310,28 @@ const ProductReviews: React.FC<ProductReviewsProps> = ({ productId, productName 
             </Select>
           </FormControl>
           
-          {isAuthenticated && (
+          {isAuthenticated ? (
             <Button
               variant="contained"
               onClick={() => handleOpenReviewDialog()}
               sx={{ bgcolor: '#000', '&:hover': { bgcolor: '#333' } }}
             >
               Viết đánh giá
+            </Button>
+          ) : (
+            <Button
+              variant="outlined"
+              onClick={() => window.location.href = '/login'}
+              sx={{ 
+                borderColor: '#000', 
+                color: '#000',
+                '&:hover': { 
+                  borderColor: '#333', 
+                  bgcolor: '#f5f5f5' 
+                } 
+              }}
+            >
+              Đăng nhập để viết đánh giá
             </Button>
           )}
         </Box>
@@ -331,16 +349,24 @@ const ProductReviews: React.FC<ProductReviewsProps> = ({ productId, productName 
       ) : reviews.length === 0 ? (
         <Card>
           <CardContent sx={{ textAlign: 'center', py: 4 }}>
-            <Typography color="text.secondary">
+            <Typography color="text.secondary" sx={{ mb: 2 }}>
               Chưa có đánh giá nào cho sản phẩm này
             </Typography>
-            {isAuthenticated && (
+            {isAuthenticated ? (
               <Button
                 variant="outlined"
                 onClick={() => handleOpenReviewDialog()}
                 sx={{ mt: 2 }}
               >
                 Viết đánh giá đầu tiên
+              </Button>
+            ) : (
+              <Button
+                variant="outlined"
+                onClick={() => window.location.href = '/login'}
+                sx={{ mt: 2 }}
+              >
+                Đăng nhập để viết đánh giá đầu tiên
               </Button>
             )}
           </CardContent>

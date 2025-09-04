@@ -582,7 +582,7 @@ const AdminDashboard = () => {
                                 onChange={async (e) => {
                                   const newMembership = e.target.value;
                                   try {
-                                    const response = await fetchWithAuth(`${endpoints.admin.users}/${user._id}/membership`, {
+                                    const response = await fetchWithAuth(`${endpoints.admin.users}/${user._id}/membership/`, {
                                       method: 'PATCH',
                                       headers: { 'Content-Type': 'application/json' },
                                       body: JSON.stringify({ membership: newMembership }),
@@ -911,9 +911,11 @@ const AdminDashboard = () => {
                                 '&:hover': { color: 'primary.dark' }
                               }}
                               onClick={() => {
-                                // Construct the full URL by adding the backend base URL
-                                const backendBaseUrl = process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:8000';
-                                const fullUrl = `${backendBaseUrl}${log.payment_proof_url}`;
+                                let fullUrl = log.payment_proof_url;
+                                if (fullUrl && !/^https?:\/\//.test(fullUrl)) {
+                                  const backendBaseUrl = process.env.REACT_APP_API_URL?.replace('/api', '') || 'https://flashion.xyz';
+                                  fullUrl = `${backendBaseUrl}${fullUrl}`;
+                                }
                                 window.open(fullUrl, '_blank');
                               }}
                             >

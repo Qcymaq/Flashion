@@ -5,7 +5,7 @@ FROM python:3.11-slim
 WORKDIR /backend
 
 # Copy environment.yml for requirements
-COPY ../../environment.yml /backend/environment.yml
+COPY environment.yml /backend/environment.yml
 
 # Install build dependencies and system libraries for OpenCV
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -19,10 +19,10 @@ RUN pip install --upgrade pip && \
 RUN pip install -r /backend/requirements.txt
 
 # Copy the backend source code
-COPY ../../backend /backend
+COPY backend /backend
 
 # Copy startup script
-COPY ../../backend/startup.sh /backend/startup.sh
+COPY backend/startup.sh /backend/startup.sh
 
 # Make startup script executable
 RUN chmod +x /backend/startup.sh

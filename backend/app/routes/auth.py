@@ -18,6 +18,7 @@ import smtplib
 import re
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+import os
 
 # Helper function to format membership upgrade logs
 def format_membership_log(log):
@@ -32,6 +33,18 @@ def format_membership_log(log):
         "status": log.get("status"),
         "payment_proof_url": log.get("payment_proof_url"),
     }
+
+def make_https_url(path: str) -> str:
+    # If already a full URL, return as is
+    if path.startswith("http://") or path.startswith("https://"):
+        return path
+    # Remove accidental duplicate domain
+    if path.startswith("//flashion.xyz"):
+        return f"https://flashion.xyz{path[14:]}"
+    # Ensure single leading slash
+    if not path.startswith("/"):
+        path = "/" + path
+    return f"https://flashion.xyz{path}"
 
 router = APIRouter()
 
@@ -271,7 +284,7 @@ async def request_membership_upgrade(
         proof_path = f"app/static/uploads/{proof_filename}"
         with open(proof_path, "wb") as f:
             f.write(await payment_proof.read())
-        payment_proof_url = f"/static/uploads/{proof_filename}"
+        payment_proof_url = make_https_url(f"/static/uploads/{proof_filename}")
 
     # Log the upgrade request in the membership_upgrades collection
     log_entry = {
@@ -300,7 +313,12 @@ async def get_latest_upgrade_request_status(current_user: UserInDB = Depends(get
     db = get_database()
     log = await db.membership_upgrades.find({"user_id": str(current_user.id)}).sort("upgraded_at", -1).to_list(length=1)
     if log:
-        return log[0]
+        doc = log[0]
+        # Convert ObjectId fields to string
+        doc["_id"] = str(doc["_id"])
+        if "user_id" in doc:
+            doc["user_id"] = str(doc["user_id"])
+        return doc
     return {"status": "none"} 
 
 # Password reset token storage (in production, use Redis or database)
@@ -321,7 +339,9 @@ def send_password_reset_email(email: str, reset_token: str, user_name: str = Non
     """Send password reset email (simulated for development)"""
     try:
         # In production, implement actual email sending
-        reset_url = f"http://localhost:3000/reset-password?token={reset_token}"
+        # Use HTTPS and your domain for production
+        frontend_url = os.getenv("FRONTEND_URL", "https://flashion.xyz")
+        reset_url = f"{frontend_url}/reset-password?token={reset_token}"
         
         # For development, just log the reset URL
         logging.info(f"Password reset email would be sent to {email}")

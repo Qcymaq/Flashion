@@ -23,6 +23,11 @@ UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 def is_valid_image(filename: str) -> bool:
     return Path(filename).suffix.lower() in ALLOWED_EXTENSIONS
 
+def make_https_url(path: str) -> str:
+    if path.startswith("http"):
+        return path
+    return f"https://flashion.xyz{path}"
+
 @router.post("/images/{product_id}", response_model=List[str])
 @router.post("/images", response_model=List[str])
 async def upload_images(
@@ -71,7 +76,7 @@ async def upload_images(
                 shutil.copyfileobj(file.file, buffer)
 
             # Return the URL path
-            uploaded_files.append(f"/static/uploads/{safe_filename}")
+            uploaded_files.append(make_https_url(f"/static/uploads/{safe_filename}"))
 
         except Exception as e:
             errors.append(f"Error uploading {file.filename}: {str(e)}")

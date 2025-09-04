@@ -1,34 +1,30 @@
 services:
-  mongo:
-    image: mongo:6
-    restart: always
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongo_data:/data/db
-
   backend:
     build:
       context: .
       dockerfile: backend/app/Dockerfile
-    restart: always
-    depends_on:
-      - mongo
+    restart: unless-stopped
     environment:
-      - MONGO_URI=mongodb://mongo:27017
+      - MONGO_URI=mongodb+srv://flashion:anhquan123@flashion.w7edq3p.mongodb.net/flashion?retryWrites=true&w=majority&appName=Flashion
     ports:
       - "8000:8000"
     volumes:
       - ./backend/app/uploads:/backend/app/uploads
       - ./backend/app/static:/backend/app/static
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   frontend:
-    build: ./frontend
-    restart: always
+    build:
+      context: ./frontend
+      args:
+        - REACT_APP_API_URL=https://flashion.xyz/api
+    restart: unless-stopped
     depends_on:
       - backend
-    ports:
-      - "3000:80"
-
-volumes:
-  mongo_data: 
+    environment:
+      - REACT_APP_API_URL=https://flashion.xyz/api
+    # No need to expose port 80 if using host Nginx

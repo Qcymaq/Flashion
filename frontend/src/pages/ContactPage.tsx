@@ -153,12 +153,12 @@ const ContactPage: React.FC = () => {
     {
       icon: <LocationOn sx={{ fontSize: 40, color: 'primary.main' }} />,
       title: 'Địa Chỉ',
-      content: 'FPT University, Hồ Chí Minh',
+      content: 'FPT University, Hồ Chí Minh (7 Đ. D1, Long Thạnh Mỹ, Thủ Đức, Hồ Chí Minh)',
     },
     {
       icon: <Phone sx={{ fontSize: 40, color: 'primary.main' }} />,
       title: 'Điện Thoại',
-      content: '0123456789',
+      content: '0819994722',
     },
     {
       icon: <Email sx={{ fontSize: 40, color: 'primary.main' }} />,

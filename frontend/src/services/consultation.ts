@@ -1,6 +1,7 @@
 import axios from 'axios';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+// Use HTTPS and your domain for production
+const API_URL = process.env.REACT_APP_API_URL || 'https://flashion.xyz/api';
 
 export interface ConsultationForm {
   name: string;
@@ -12,7 +13,7 @@ export interface ConsultationForm {
 
 export const submitConsultation = async (formData: ConsultationForm) => {
   try {
-    const response = await axios.post(`${API_URL}/consultations`, formData);
+    const response = await axios.post(`${API_URL}/consultations/`, formData);
     return response.data;
   } catch (error: any) {
     // Handle different types of errors
@@ -82,7 +83,7 @@ export const submitConsultation = async (formData: ConsultationForm) => {
 export const getConsultations = async (token: string | null): Promise<any> => {
   if (!token) throw new Error('Authentication required');
   try {
-    const response = await axios.get(`${API_URL}/consultations`, {
+    const response = await axios.get(`${API_URL}/consultations/`, {
       headers: {
         Authorization: `Bearer ${token}`
       }

@@ -73,6 +73,7 @@ const TryOnButton = styled(Button)({
 interface Product {
   _id: string;
   name: string;
+  summary?: string;
   description: string;
   price: number;
   category: string;
@@ -109,7 +110,7 @@ const StudioPage: React.FC = () => {
   const fetchProduct = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await fetch(`http://localhost:8000/api/products/${productId}`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/products/${productId}`, {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
@@ -366,9 +367,15 @@ const StudioPage: React.FC = () => {
               {product.price.toLocaleString('vi-VN')}đ
             </Typography>
 
-            <Typography variant="body1" paragraph>
-              {product.description}
-            </Typography>
+            {product.summary ? (
+              <Typography variant="body1" paragraph sx={{ color: 'text.secondary', fontStyle: 'italic' }}>
+                {product.summary}
+              </Typography>
+            ) : (
+              <Typography variant="body1" paragraph sx={{ color: 'text.secondary', fontStyle: 'italic' }}>
+                {product.description.length > 200 ? `${product.description.substring(0, 200)}...` : product.description}
+              </Typography>
+            )}
 
             <Divider sx={{ my: 3 }} />
 

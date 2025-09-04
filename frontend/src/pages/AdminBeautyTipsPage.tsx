@@ -66,6 +66,18 @@ import { useAuth } from '../contexts/AuthContext';
 
 const authors = ['Chuyên gia Flashion', 'Chuyên gia trang điểm Flashion', 'Dermatologist Flashion', 'Chuyên gia Màu sắc'];
 
+// Default categories if none exist in database
+const defaultCategories = [
+  'Làm đẹp',
+  'Trang điểm',
+  'Chăm sóc da',
+  'Tóc và tạo kiểu',
+  'Mỹ phẩm',
+  'Xu hướng',
+  'Bí quyết',
+  'Đánh giá sản phẩm'
+];
+
 const AdminBeautyTipsPage = () => {
   const navigate = useNavigate();
   const [beautyTips, setBeautyTips] = useState<BeautyTip[]>([]);
@@ -87,6 +99,7 @@ const AdminBeautyTipsPage = () => {
   const [commentsLoading, setCommentsLoading] = useState(false);
   const [selectedTipId, setSelectedTipId] = useState<string | null>(null);
   const [commentDeleteLoading, setCommentDeleteLoading] = useState<string | null>(null);
+  const [deleteSuccess, setDeleteSuccess] = useState<string | null>(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -117,11 +130,21 @@ const AdminBeautyTipsPage = () => {
       ]);
       
       setBeautyTips(tipsData);
-      setCategories(categoriesData);
+      
+      // Use default categories if database returns empty or invalid categories
+      const validCategories = categoriesData.filter(cat => cat && cat.trim() !== '');
+      if (validCategories.length === 0) {
+        setCategories(defaultCategories);
+      } else {
+        setCategories(validCategories);
+      }
+      
       setStats(statsData);
     } catch (error) {
       console.error('Error fetching data:', error);
       setSnackbar({ open: true, message: 'Lỗi khi tải dữ liệu', severity: 'error' });
+      // Use default categories on error
+      setCategories(defaultCategories);
     } finally {
       setLoading(false);
     }
@@ -292,15 +315,24 @@ const AdminBeautyTipsPage = () => {
     setSelectedTipId(null);
   };
 
-  const handleDeleteComment = async (commentId: string) => {
+  const handleDeleteComment = async (tipId: string, commentId: string) => {
     if (!token) return;
-    if (!window.confirm('Bạn có chắc chắn muốn xóa bình luận này?')) return;
     setCommentDeleteLoading(commentId);
     try {
-      await deleteComment(commentId, token);
+      await deleteComment(tipId, commentId, token);
       setComments((prev) => prev.filter((c) => c._id !== commentId));
-    } catch {}
-    setCommentDeleteLoading(null);
+      setDeleteSuccess('Đã xóa bình luận thành công!');
+    } catch (error: any) {
+      // Ignore 404 errors (already deleted)
+      if (error.message && error.message.includes('404')) {
+        setComments((prev) => prev.filter((c) => c._id !== commentId));
+        setDeleteSuccess('Đã xóa bình luận thành công!');
+      } else {
+        alert('Không thể xóa bình luận');
+      }
+    } finally {
+      setCommentDeleteLoading(null);
+    }
   };
 
   if (loading) {
@@ -759,7 +791,12 @@ const AdminBeautyTipsPage = () => {
             <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
               <CircularProgress />
             </Box>
-          ) : comments.length === 0 ? (
+          ) : deleteSuccess && (
+            <Alert severity="success" onClose={() => setDeleteSuccess(null)} sx={{ mb: 2 }}>
+              {deleteSuccess}
+            </Alert>
+          )}
+          {comments.length === 0 ? (
             <Typography color="text.secondary">Chưa có bình luận nào cho bài viết này.</Typography>
           ) : (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -773,7 +810,7 @@ const AdminBeautyTipsPage = () => {
                       {new Date(c.created_at).toLocaleString('vi-VN')}
                     </Typography>
                   </Box>
-                  <IconButton color="error" onClick={() => handleDeleteComment(c._id)} disabled={commentDeleteLoading === c._id}>
+                  <IconButton color="error" onClick={() => { if (selectedTipId) handleDeleteComment(selectedTipId, c._id); }} disabled={commentDeleteLoading === c._id}>
                     <DeleteIcon />
                   </IconButton>
                 </Box>

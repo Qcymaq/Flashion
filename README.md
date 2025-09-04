@@ -80,9 +80,9 @@ docker-compose up -d
 ```
 
 ### 4. Access the Application
-- **Frontend**: http://localhost:3000
-- **Backend API**: http://localhost:8000
-- **API Documentation**: http://localhost:8000/docs
+- **Frontend**: https://flashion.xyz
+- **Backend API**: https://flashion.xyz/api
+- **API Documentation**: https://flashion.xyz/docs
 
 ## 🔧 Configuration
 
@@ -106,10 +106,10 @@ PORT=8000
 DEBUG=True
 
 # CORS
-ALLOWED_ORIGINS=http://localhost:3000
+ALLOWED_ORIGINS=https://flashion.xyz,https://www.flashion.xyz
 
 # Frontend
-REACT_APP_API_URL=http://localhost:8000/api
+REACT_APP_API_URL=https://flashion.xyz/api
 ```
 
 ## 📁 Project Structure

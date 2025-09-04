@@ -20,6 +20,8 @@ from ..schemas.admin import (
 )
 import logging
 import secrets
+import traceback
+import sys
 
 class ResetRevenueRequest(BaseModel):
     reason: str
@@ -45,7 +47,7 @@ class PasswordResetRequest(BaseModel):
 
 router = APIRouter(tags=["admin"])
 
-@router.get("/products", response_model=List[Product])
+@router.get("/products/", response_model=List[Product])
 async def get_admin_products(
     current_user: User = Depends(get_current_admin_user),
     skip: int = 0,
@@ -70,7 +72,7 @@ async def get_admin_products(
         } for product in products
     ]
 
-@router.post("/products", response_model=Product)
+@router.post("/products/", response_model=Product)
 async def create_product(
     product: ProductCreate,
     current_user: User = Depends(get_current_admin_user)
@@ -85,7 +87,7 @@ async def create_product(
     
     return Product(**created_product)
 
-@router.put("/products/{product_id}", response_model=Product)
+@router.put("/products/{product_id}/", response_model=Product)
 async def update_product(
     product_id: str,
     product: ProductCreate,
@@ -115,7 +117,7 @@ async def update_product(
     updated_product = await db.products.find_one({"_id": ObjectId(product_id)})
     return Product(**updated_product)
 
-@router.delete("/products/{product_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/products/{product_id}/", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_product(
     product_id: str,
     current_user: User = Depends(get_current_admin_user)
@@ -134,7 +136,7 @@ async def delete_product(
             detail="Product not found"
         )
 
-@router.get("/users", response_model=List[User])
+@router.get("/users/", response_model=List[User])
 async def get_admin_users(
     current_user: User = Depends(get_current_admin_user),
     skip: int = 0,
@@ -144,7 +146,7 @@ async def get_admin_users(
     users = await db.users.find().skip(skip).limit(limit).to_list(length=limit)
     return [User.from_db(UserInDB(**user)) for user in users]
 
-@router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/users/{user_id}/", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_user(
     user_id: str,
     current_user: User = Depends(get_current_admin_user)
@@ -173,7 +175,7 @@ async def delete_user(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/users/{user_id}", response_model=User)
+@router.get("/users/{user_id}/", response_model=User)
 async def get_user(
     user_id: str,
     current_user: User = Depends(get_current_admin_user)
@@ -197,7 +199,7 @@ async def get_user(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/users/memberships", response_model=List[User])
+@router.get("/users/memberships/", response_model=List[User])
 async def get_users_memberships(
     membership: str = None,
     current_user: User = Depends(get_current_admin_user),
@@ -211,7 +213,7 @@ async def get_users_memberships(
     users = await db.users.find(query).skip(skip).limit(limit).to_list(length=limit)
     return [User.from_db(UserInDB(**user)) for user in users]
 
-@router.patch("/users/{user_id}/membership")
+@router.patch("/users/{user_id}/membership/")
 async def update_user_membership(user_id: str, membership: str = Body(..., embed=True), current_user: User = Depends(get_current_admin_user)):
     db = get_database()
     if membership not in ["free", "gold", "diamond"]:
@@ -223,7 +225,7 @@ async def update_user_membership(user_id: str, membership: str = Body(..., embed
         raise HTTPException(status_code=404, detail="User not found")
     return {"message": "Membership updated successfully"}
 
-@router.post("/users", response_model=User)
+@router.post("/users/", response_model=User)
 async def create_user(
     user_data: dict = Body(...),
     current_user: User = Depends(get_current_admin_user)
@@ -252,7 +254,7 @@ async def create_user(
     
     return User.from_db(UserInDB(**created_user))
 
-@router.put("/users/{user_id}", response_model=User)
+@router.put("/users/{user_id}/", response_model=User)
 async def update_user(
     user_id: str,
     user_data: dict = Body(...),
@@ -292,7 +294,7 @@ async def update_user(
     updated_user = await db.users.find_one({"_id": ObjectId(user_id)})
     return User.from_db(UserInDB(**updated_user))
 
-@router.put("/users/{user_id}/status")
+@router.put("/users/{user_id}/status/")
 async def update_user_status(
     user_id: str,
     status_data: dict = Body(...),
@@ -351,7 +353,7 @@ class MembershipUpgradeLog(BaseModel):
 # Remove /memberships/upgrades endpoint and manual formatting
 # Only keep /memberships endpoint for fetching membership upgrade requests
 
-@router.get("/memberships", response_model=List[MembershipUpgradeLog])
+@router.get("/memberships/", response_model=List[MembershipUpgradeLog])
 async def get_memberships(
     status: str = Query(None, description="Filter by status: pending, approved, denied, or all"),
     current_user: User = Depends(get_current_admin_user)
@@ -363,7 +365,7 @@ async def get_memberships(
     logs = await db.membership_upgrades.find(query).sort("upgraded_at", -1).to_list(length=1000)
     return [MembershipUpgradeLog.from_db(log) for log in logs]
 
-@router.get("/stats", response_model=DashboardStats)
+@router.get("/stats/", response_model=DashboardStats)
 async def get_dashboard_stats(current_user: User = Depends(get_current_admin_user)):
     try:
         db = get_database()
@@ -390,7 +392,7 @@ async def get_dashboard_stats(current_user: User = Depends(get_current_admin_use
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/stats/reset-revenue")
+@router.post("/stats/reset-revenue/")
 async def reset_revenue(
     reset_data: ResetRevenueRequest,
     current_user: User = Depends(get_current_admin_user)
@@ -454,7 +456,7 @@ async def reset_revenue(
         print(f"Error in reset_revenue: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to reset revenue: {str(e)}")
 
-@router.get("/orders/recent", response_model=List[RecentOrder])
+@router.get("/orders/recent/", response_model=List[RecentOrder])
 async def get_recent_orders(current_user: User = Depends(get_current_admin_user)):
     try:
         db = get_database()
@@ -495,34 +497,38 @@ async def get_recent_orders(current_user: User = Depends(get_current_admin_user)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/products/top", response_model=List[TopProduct])
+@router.get("/products/top/", response_model=List[TopProduct])
 async def get_top_products(current_user: User = Depends(get_current_admin_user)):
+    print("DEBUG: /products/top/ endpoint called"); sys.stdout.flush()
     try:
         db = get_database()
-        
-        # Get all completed and delivered orders (excluding archived)
         completed_orders = await db.orders.find({
             "status": {"$in": ["completed", "delivered"]}
         }).to_list(length=None)
-        
-        # Calculate product sales
+        print("completed_orders:", completed_orders); sys.stdout.flush()
         product_sales = {}
         for order in completed_orders:
             for item in order.get("items", []):
-                product_id = str(item["product_id"])
+                pid = item["product_id"]
+                product_id = str(pid) if isinstance(pid, (str, ObjectId)) else None
+                if not product_id:
+                    continue
                 if product_id not in product_sales:
                     product_sales[product_id] = {"quantity": 0, "revenue": 0}
                 product_sales[product_id]["quantity"] += item["quantity"]
                 product_sales[product_id]["revenue"] += item["price"] * item["quantity"]
-
-        # Get top 5 products
+        print("product_sales:", product_sales); sys.stdout.flush()
         top_products = []
         for product_id, sales in sorted(
             product_sales.items(),
             key=lambda x: x[1]["revenue"],
             reverse=True
         )[:5]:
-            product = await db.products.find_one({"_id": ObjectId(product_id)})
+            product = None
+            if ObjectId.is_valid(product_id):
+                product = await db.products.find_one({"_id": ObjectId(product_id)})
+            if not product:
+                product = await db.products.find_one({"_id": product_id})
             if product:
                 top_products.append({
                     "_id": product_id,
@@ -531,12 +537,14 @@ async def get_top_products(current_user: User = Depends(get_current_admin_user))
                     "revenue": sales["revenue"],
                     "image_url": product.get("images", [""])[0]
                 })
-
-        return top_products
+        print("top_products:", top_products); sys.stdout.flush()
+        return top_products if top_products else []
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print("Exception in /products/top/:"); sys.stdout.flush()
+        traceback.print_exc(); sys.stdout.flush()
+        return []
 
-@router.get("/payments", response_model=List[Payment])
+@router.get("/payments/", response_model=List[Payment])
 async def get_payments(
     current_user: User = Depends(get_current_admin_user),
     skip: int = 0,
@@ -571,7 +579,7 @@ async def get_payments(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.put("/payments/{payment_id}/status", response_model=Payment)
+@router.put("/payments/{payment_id}/status/", response_model=Payment)
 async def update_payment_status(
     payment_id: str,
     status_update: PaymentStatusUpdate,
@@ -631,7 +639,7 @@ async def update_payment_status(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/orders/archived", response_model=List[RecentOrder])
+@router.get("/orders/archived/", response_model=List[RecentOrder])
 async def get_archived_orders(current_user: User = Depends(get_current_admin_user)):
     try:
         db = get_database()
@@ -675,7 +683,55 @@ async def get_archived_orders(current_user: User = Depends(get_current_admin_use
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) 
 
-@router.post("/users/{user_id}/reset-password")
+@router.get("/orders/", response_model=List[RecentOrder])
+async def get_all_orders(
+    current_user: User = Depends(get_current_admin_user),
+    skip: int = 0,
+    limit: int = 10
+):
+    """
+    Get all orders with user information for admin panel.
+    """
+    try:
+        db = get_database()
+        orders = await db.orders.find().sort("created_at", -1).skip(skip).limit(limit).to_list(length=limit)
+        
+        # Format orders to match the schema
+        formatted_orders = []
+        for order in orders:
+            # Get user information
+            user = await db.users.find_one({"_id": ObjectId(order["user_id"])})
+            
+            formatted_order = {
+                "_id": str(order["_id"]),
+                "user_id": str(order["user_id"]),
+                "user": {
+                    "_id": str(user["_id"]) if user else "Unknown",
+                    "full_name": user.get("full_name", "Unknown User") if user else "Unknown User",
+                    "email": user.get("email", "") if user else ""
+                },
+                "items": [
+                    {
+                        "product_id": str(item["product_id"]),
+                        "product_name": item.get("product_name", "Unknown Product"),
+                        "quantity": item["quantity"],
+                        "price": item["price"]
+                    }
+                    for item in order.get("items", [])
+                ],
+                "total_price": order["total_price"],
+                "shipping_address": order.get("shipping_address", ""),
+                "status": order["status"],
+                "created_at": order["created_at"],
+                "updated_at": order["updated_at"]
+            }
+            formatted_orders.append(formatted_order)
+        
+        return formatted_orders
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/users/{user_id}/reset-password/")
 async def admin_reset_user_password(
     user_id: str,
     request: dict = Body(...),
@@ -730,7 +786,7 @@ async def admin_reset_user_password(
     
     return {"message": "User password has been reset successfully"}
 
-@router.post("/users/{user_id}/send-reset-link")
+@router.post("/users/{user_id}/send-reset-link/")
 async def admin_send_reset_link(
     user_id: str,
     current_user: User = Depends(get_current_admin_user)
@@ -782,7 +838,7 @@ async def admin_send_reset_link(
             detail="Failed to send password reset link"
         )
 
-@router.get("/password-reset-requests", response_model=List[PasswordResetRequest])
+@router.get("/password-reset-requests/", response_model=List[PasswordResetRequest])
 async def get_password_reset_requests(
     status: str = Query(None, description="Filter by status: pending, completed, expired, or all"),
     current_user: User = Depends(get_current_admin_user)
@@ -809,7 +865,7 @@ async def get_password_reset_requests(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/password-reset-requests/{request_id}", response_model=PasswordResetRequest)
+@router.get("/password-reset-requests/{request_id}/", response_model=PasswordResetRequest)
 async def get_password_reset_request(
     request_id: str,
     current_user: User = Depends(get_current_admin_user)
@@ -832,7 +888,7 @@ async def get_password_reset_request(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.delete("/password-reset-requests/{request_id}")
+@router.delete("/password-reset-requests/{request_id}/", status_code=status.HTTP_204_NO_CONTENT)
 async def revoke_password_reset_request(
     request_id: str,
     current_user: User = Depends(get_current_admin_user)
@@ -861,7 +917,7 @@ async def revoke_password_reset_request(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.put("/password-reset-requests/{request_id}/complete")
+@router.put("/password-reset-requests/{request_id}/complete/")
 async def mark_password_reset_completed(
     request_id: str,
     current_user: User = Depends(get_current_admin_user)
@@ -891,7 +947,7 @@ async def mark_password_reset_completed(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.delete("/password-reset-requests/{request_id}/delete")
+@router.delete("/password-reset-requests/{request_id}/delete/")
 async def delete_password_reset_request(
     request_id: str,
     current_user: User = Depends(get_current_admin_user)
@@ -920,7 +976,7 @@ async def delete_password_reset_request(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/password-reset-stats")
+@router.get("/password-reset-stats/")
 async def get_password_reset_stats(current_user: User = Depends(get_current_admin_user)):
     """Get password reset statistics for admin dashboard"""
     try:

@@ -211,7 +211,9 @@ async def get_categories(db = Depends(get_database)):
         collection = db.beauty_tips
         
         categories = await collection.distinct("category")
-        return {"categories": categories}
+        # Filter out empty or None categories
+        valid_categories = [cat for cat in categories if cat and cat.strip()]
+        return {"categories": valid_categories}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
@@ -353,5 +355,28 @@ async def toggle_like_beauty_tip(
             "likes": updated.get("likes", 0),
             "liked": liked
         }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}") 
+
+@router.delete("/{tip_id}/comments/{comment_id}", status_code=204)
+async def delete_comment_for_tip(
+    tip_id: str,
+    comment_id: str,
+    current_admin=Depends(get_current_admin_user),
+    db=Depends(get_database)
+):
+    """Delete a comment for a beauty tip (Admin only)"""
+    try:
+        collection = db.comments
+        if not ObjectId.is_valid(tip_id):
+            raise HTTPException(status_code=400, detail="Invalid beauty tip ID")
+        if not ObjectId.is_valid(comment_id):
+            raise HTTPException(status_code=400, detail="Invalid comment ID")
+        result = await collection.delete_one({"_id": ObjectId(comment_id), "tip_id": tip_id})
+        if result.deleted_count == 0:
+            raise HTTPException(status_code=404, detail="Comment not found")
+        return
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}") 

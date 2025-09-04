@@ -249,8 +249,8 @@ export const addCommentToTip = async (tipId: string, content: string, token: str
 };
 
 // Delete a comment (admin only)
-export const deleteComment = async (commentId: string, token: string) => {
-  const response = await fetch(`${endpoints.beautyTips.list}/comments/${commentId}`, {
+export const deleteComment = async (tipId: string, commentId: string, token: string) => {
+  const response = await fetch(`${endpoints.beautyTips.list}${tipId}/comments/${commentId}`, {
     method: 'DELETE',
     headers: {
       'Authorization': `Bearer ${token}`,

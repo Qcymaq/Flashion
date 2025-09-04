@@ -118,3 +118,29 @@ yarn-error.log*
 .DS_Store
 Thumbs.db
 
+# MongoDB local data and backups
+mongo-data/
+mongo-config/
+backups/
+*.archive
+backup.log
+mongo_monitor.log
+
+# Migration and backup scripts
+*_backup.sh
+*_restore.sh
+*_migration.sh
+*_atlas*.sh
+*_connection.sh
+*_storage.sh
+*_migration_guide.md
+
+# Environment and configuration files
+environment.yml
+.env.local
+.env.production
+
+# User uploaded files
+backend/app/static/uploads/
+backend/app/uploads/
+
