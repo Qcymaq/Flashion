@@ -90,6 +90,8 @@ A modern e-commerce platform built with React, FastAPI, and MongoDB Atlas. Featu
 
 ## 🚀 Quick Start
 
+**Note:** The URLs below are for production reference. For local development, use `http://localhost:3000` (frontend) and `http://localhost:8000` (backend).
+
 ### 1. Clone the Repository
 ```bash
 git clone <repository-url>
@@ -118,9 +120,9 @@ docker-compose logs -f
 ```
 
 ### 4. Access the Application
-- **Frontend**: https://flashion.xyz
-- **Backend API**: https://flashion.xyz/api
-- **API Documentation**: https://flashion.xyz/docs
+- **Frontend**: https://flashion.xyz (production) | http://localhost:3000 (development)
+- **Backend API**: https://flashion.xyz/api (production) | http://localhost:8000/api (development)
+- **API Documentation**: https://flashion.xyz/docs (production) | http://localhost:8000/docs (development)
 
 ## 🔧 Configuration
 
@@ -347,6 +349,51 @@ npm start
 - ✅ Enhanced beauty tip category management
 - ✅ Cleaned project structure for production
 - ✅ Comprehensive error handling and validation
+
+### Current Status
+This repository contains a **complete, production-ready e-commerce platform**. All features are fully implemented and tested. The application is ready for immediate deployment to any hosting provider.
+
+## 🚀 Production Deployment
+
+### Deployment Options
+1. **Cloud Platforms**
+   - **AWS** - EC2, ECS, or Lambda
+   - **Google Cloud** - Compute Engine or Cloud Run
+   - **Azure** - Virtual Machines or App Service
+   - **DigitalOcean** - Droplets or App Platform
+   - **Heroku** - Container deployment
+
+2. **Self-Hosted**
+   - **VPS** - Ubuntu/CentOS server
+   - **Dedicated Server** - Full control deployment
+   - **Local Network** - Intranet deployment
+
+### Quick Production Setup
+```bash
+# 1. Clone repository
+git clone <your-repo-url>
+cd Flashion
+
+# 2. Configure environment
+cp .env.example .env
+# Edit .env with production values
+
+# 3. Deploy with Docker
+docker-compose -f docker-compose.yml up -d
+
+# 4. Configure reverse proxy (Nginx)
+# 5. Set up SSL certificates
+# 6. Configure domain DNS
+```
+
+### Production Checklist
+- [ ] MongoDB Atlas database configured
+- [ ] Environment variables set for production
+- [ ] SSL certificates installed
+- [ ] Domain DNS configured
+- [ ] Firewall rules set
+- [ ] Monitoring and logging configured
+- [ ] Backup strategy implemented
 
 ## 📄 License
 
