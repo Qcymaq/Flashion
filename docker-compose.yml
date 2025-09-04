@@ -5,7 +5,7 @@ services:
       dockerfile: backend/app/Dockerfile
     restart: unless-stopped
     environment:
-      - MONGO_URI=mongodb+srv://flashion:anhquan123@flashion.w7edq3p.mongodb.net/flashion?retryWrites=true&w=majority&appName=Flashion
+      - MONGO_URI=mongodb+srv://username:password@cluster.mongodb.net/flashion?retryWrites=true&w=majority
     ports:
       - "8000:8000"
     volumes:
