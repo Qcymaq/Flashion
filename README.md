@@ -32,7 +32,7 @@ A modern e-commerce platform built with React, FastAPI, and MongoDB Atlas. Featu
 ### 1. **Frontend Tour (Public Access)**
 *Complete walkthrough of all public pages and features without authentication*
 
-[![Frontend Tour](docs/media/frontend-tour-thumbnail.png)](docs/media/frontend-tour.mp4)
+![Frontend Tour](docs/media/frontend-tour.gif)
 
 **What you'll see:**
 - Homepage and navigation
@@ -45,7 +45,7 @@ A modern e-commerce platform built with React, FastAPI, and MongoDB Atlas. Featu
 ### 2. **Interactive Features Demo (User Experience)**
 *Hands-on demonstration of core features and user interactions*
 
-[![Features Demo](docs/media/features-demo-thumbnail.png)](docs/media/features-demo.mp4)
+![Features Demo](docs/media/features-demo.gif)
 
 **Features demonstrated:**
 - User authentication and login
