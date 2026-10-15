@@ -7,7 +7,7 @@ Flashion is an online shop for beauty products with a virtual makeup try-on feat
 This is a course project, not a finished commercial product.
 
 - The main shopping, admin and virtual makeup features were implemented and tested by hand.
-- A small backend test suite (pytest) covers the order total calculation and checks that the old free membership upgrade endpoint is gone. There are no frontend tests.
+- A small backend test suite (pytest) covers the order total and stock checks, the rules for the JWT secret, and checks that the old free membership upgrade endpoint is gone. There are no frontend tests.
 - Payment is a manual bank transfer that an admin confirms. There is no payment gateway.
 - Some parts are simplified. For example, password reset requests are kept in server memory and handled by an admin.
 
@@ -140,18 +140,19 @@ Copy `.env.example` to `.env` (repository root, used by Docker Compose) or `back
 
 | Variable | Required | Description |
 | --- | --- | --- |
-| `ENV` | No | `production` or `development`. Default: `development` (Docker Compose defaults to `production`). In production the backend refuses to start without a real `JWT_SECRET`, and uvicorn runs without auto-reload. In development uvicorn auto-reloads and logs at debug level. |
+| `ENV` | No | `development` (or `dev`) or `production`. `ENVIRONMENT` is accepted as another name when `ENV` is not set. Default: `development` when you run the backend yourself; the Docker image and Docker Compose default to `production`. Only in development can the backend start without a real `JWT_SECRET`; any other value, including unknown ones such as `staging`, needs a real secret. In development `startup.sh` runs uvicorn with auto-reload and debug logs. |
 | `MONGO_URI` | Yes | MongoDB connection string. Default outside Docker: `mongodb://localhost:27017`. |
-| `JWT_SECRET` | Yes in production | Secret used to sign login tokens. `SECRET_KEY` is accepted as a fallback name. In development, if it is missing, a random secret is generated at each start (all logins become invalid after a restart). |
+| `JWT_SECRET` | Yes, except in development | Secret used to sign login tokens. `SECRET_KEY` is accepted as a fallback name. In development, if it is missing or still the `change-me` placeholder from the example files, a random secret is generated at each start (all logins become invalid after a restart). |
 | `ADMIN_EMAIL`, `ADMIN_PASSWORD` | No | If both are set, `backend/startup.sh` creates this admin account when it does not exist yet. Admin creation is skipped when they are empty or the password is still the `change-me` placeholder. The password is never written to the logs. |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | No | Login token lifetime in minutes. Default: 43200 (30 days). |
 | `ALLOWED_ORIGINS` | No | Comma-separated list of allowed CORS origins. Default: `http://localhost:3000`. |
+| `FRONTEND_URL` | No | Base URL of the frontend, used to build password reset links. Emails are only simulated, so the link is written to the server log. Default: `https://flashion.xyz`. |
 
-`docker-compose.yml` passes `ENV`, `MONGO_URI`, `JWT_SECRET`, `ADMIN_EMAIL` and `ADMIN_PASSWORD` to the backend container. To use `ACCESS_TOKEN_EXPIRE_MINUTES` or `ALLOWED_ORIGINS` with Docker, add them to the `environment` list there. The other entries in `.env.example` (`DATABASE_NAME`, `ALGORITHM`, `HOST`, `PORT`, `DEBUG`) are not read by the code at the moment.
+`docker-compose.yml` passes `ENV`, `MONGO_URI`, `JWT_SECRET`, `ADMIN_EMAIL` and `ADMIN_PASSWORD` to the backend container. To use `ACCESS_TOKEN_EXPIRE_MINUTES`, `ALLOWED_ORIGINS` or `FRONTEND_URL` with Docker, add them to the `environment` list there. The other entries in `.env.example` (`DATABASE_NAME`, `ALGORITHM`, `HOST`, `PORT`, `DEBUG`) are not read by the code at the moment.
 
 ### Frontend variables
 
-These are read when the frontend is built: from `frontend/.env.local` for `npm start` / `npm run build`, or from the root `.env` as build arguments in Docker Compose.
+These are read when the frontend is built. For `npm start` / `npm run build` they come from `frontend/.env.local`. With Docker Compose, `REACT_APP_API_URL` is set directly in `docker-compose.yml` (the value in the root `.env` is not used), and only the `REACT_APP_BANK_*` values are read from the root `.env` as build arguments.
 
 | Variable | Description |
 | --- | --- |
@@ -204,7 +205,7 @@ Flashion/
 - Secrets (JWT secret, admin password, database URI) come from environment variables. In production the backend does not start without a real JWT secret.
 - Order item prices and totals are calculated on the server from the product data. New orders always start as `pending`.
 - Membership tier changes are made by an admin.
-- Input is validated with Pydantic schemas.
+- Most request bodies are validated with Pydantic schemas.
 
 ## Main API endpoints
 
@@ -269,7 +270,8 @@ docker-compose restart backend           # Restart the backend
 ## Troubleshooting
 
 - **Backend exits with "JWT_SECRET is not set"** - Set `JWT_SECRET` in `.env` to a long random value, or set `ENV=development` for local testing.
-- **Database connection fails** - Check `MONGO_URI`, the network access list in MongoDB Atlas, and `docker-compose logs backend`.
+- **"required variable MONGO_URI is missing a value"** - Docker Compose needs `MONGO_URI` in the root `.env`.
+- **Backend keeps printing "MongoDB not ready yet"** - The message ends with the connection error. Check `MONGO_URI` and the network access list in MongoDB Atlas (`docker-compose logs backend`).
 - **No admin account** - Set `ADMIN_EMAIL` and `ADMIN_PASSWORD` in `.env` and restart the backend.
 - **Checkout shows "contact the shop" instead of bank details** - Set the `REACT_APP_BANK_*` variables and rebuild the frontend.
 
