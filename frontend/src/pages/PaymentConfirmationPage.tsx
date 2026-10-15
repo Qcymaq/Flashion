@@ -24,7 +24,7 @@ import {
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
-import { bankTransferDetails, hasBankTransferDetails, PAYMENT_DETAILS_UNAVAILABLE_MESSAGE } from '../config/payment';
+import { bankTransferDetails, hasBankTransferDetails, PAYMENT_DETAILS_AFTER_ORDER_MESSAGE } from '../config/payment';
 
 interface BankDetails {
   bankName: string;
@@ -121,9 +121,11 @@ const PaymentConfirmationPage: React.FC = () => {
             Xác nhận thanh toán
           </Typography>
 
-          <Alert severity="info" sx={{ mb: 4 }}>
-            Vui lòng chuyển khoản theo thông tin bên dưới để hoàn tất đơn hàng của bạn.
-          </Alert>
+          {hasBankTransferDetails && (
+            <Alert severity="info" sx={{ mb: 4 }}>
+              Vui lòng chuyển khoản theo thông tin bên dưới để hoàn tất đơn hàng của bạn.
+            </Alert>
+          )}
 
           <Grid container spacing={4}>
             <Grid item xs={12} md={6}>
@@ -202,7 +204,7 @@ const PaymentConfirmationPage: React.FC = () => {
                     </Grid>
                   ) : (
                     <Alert severity="info">
-                      {PAYMENT_DETAILS_UNAVAILABLE_MESSAGE}
+                      {PAYMENT_DETAILS_AFTER_ORDER_MESSAGE}
                     </Alert>
                   )}
 
@@ -215,12 +217,14 @@ const PaymentConfirmationPage: React.FC = () => {
               </Accordion>
 
               <Box sx={{ mt: 3, p: 2, bgcolor: '#fff3cd', borderRadius: 1, border: '1px solid #ffeaa7' }}>
-                <Typography variant="h6" sx={{ color: '#856404', mb: 1 }}>
-                  Số tiền cần chuyển: {bankDetails.amount.toLocaleString()}đ
+                <Typography variant="h6" sx={{ color: '#856404', mb: hasBankTransferDetails ? 1 : 0 }}>
+                  {hasBankTransferDetails ? 'Số tiền cần chuyển' : 'Số tiền cần thanh toán'}: {bankDetails.amount.toLocaleString()}đ
                 </Typography>
-                <Typography variant="body2" sx={{ color: '#856404' }}>
-                  ⚠️ Lưu ý: Vui lòng chuyển khoản chính xác số tiền và ghi đúng nội dung để đơn hàng được xử lý nhanh chóng.
-                </Typography>
+                {hasBankTransferDetails && (
+                  <Typography variant="body2" sx={{ color: '#856404' }}>
+                    ⚠️ Lưu ý: Vui lòng chuyển khoản chính xác số tiền và ghi đúng nội dung để đơn hàng được xử lý nhanh chóng.
+                  </Typography>
+                )}
               </Box>
             </Grid>
 
