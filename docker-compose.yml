@@ -4,8 +4,11 @@ services:
       context: .
       dockerfile: backend/app/Dockerfile
     restart: unless-stopped
+    # Values are read from the .env file next to this compose file (see .env.example).
     environment:
-      - MONGO_URI=mongodb+srv://username:password@cluster.mongodb.net/flashion?retryWrites=true&w=majority
+      - ENV=${ENV:-production}
+      - MONGO_URI=${MONGO_URI}
+      - JWT_SECRET=${JWT_SECRET}
     ports:
       - "8000:8000"
     volumes:

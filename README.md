@@ -134,8 +134,11 @@ Create a `.env` file in the root directory:
 # MongoDB Atlas Database
 MONGO_URI=mongodb+srv://username:password@cluster.mongodb.net/flashion?retryWrites=true&w=majority
 
-# JWT Security
-SECRET_KEY=your-super-secret-jwt-key
+# Environment: production or development
+ENV=production
+
+# JWT Security (required in production; generate a long random value)
+JWT_SECRET=change-me
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 

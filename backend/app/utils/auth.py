@@ -7,13 +7,68 @@ from fastapi.security import OAuth2PasswordBearer
 from app.schemas.user import User, UserInDB
 from app.utils.database import get_database
 import os
+import logging
+import secrets
 from dotenv import load_dotenv
 from bson import ObjectId
 
 load_dotenv()
 
+logger = logging.getLogger(__name__)
+
+# Example values from .env.example / old docs. They must never be used as a real secret.
+_PLACEHOLDER_SECRETS = {"change-me", "changeme", "your-secret-key"}
+
+
+def get_environment() -> str:
+    """Return the deployment environment from ENV (or ENVIRONMENT), lower-cased.
+
+    Defaults to "development" when neither variable is set.
+    """
+    return (os.getenv("ENV") or os.getenv("ENVIRONMENT") or "development").strip().lower()
+
+
+def is_production() -> bool:
+    return get_environment() in {"production", "prod"}
+
+
+def _is_placeholder_secret(value: str) -> bool:
+    lowered = value.lower()
+    return lowered in _PLACEHOLDER_SECRETS or lowered.startswith("your-super-secret")
+
+
+def _load_jwt_secret() -> str:
+    """Read the JWT signing secret from JWT_SECRET (preferred) or SECRET_KEY.
+
+    In production a missing or placeholder secret stops the app from starting.
+    In development a random secret is generated for this process only.
+    """
+    secret = (os.getenv("JWT_SECRET") or os.getenv("SECRET_KEY") or "").strip()
+    if secret and not _is_placeholder_secret(secret):
+        return secret
+
+    if is_production():
+        raise RuntimeError(
+            "JWT_SECRET is not set or still uses an example placeholder. "
+            "Refusing to start in production. Set JWT_SECRET to a long random value, "
+            "for example the output of: python -c \"import secrets; print(secrets.token_urlsafe(64))\""
+        )
+
+    logger.warning(
+        "\n"
+        "**********************************************************************\n"
+        "* WARNING: JWT_SECRET is not set (ENV=%s).\n"
+        "* Using a random secret for this process only. All login tokens\n"
+        "* become invalid when the server restarts. Set JWT_SECRET in your\n"
+        "* .env file. Never run like this in production.\n"
+        "**********************************************************************",
+        get_environment(),
+    )
+    return secrets.token_urlsafe(64)
+
+
 # Security
-SECRET_KEY = os.getenv("JWT_SECRET", "your-secret-key")
+SECRET_KEY = _load_jwt_secret()
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 43200))  # 1 month default
 
