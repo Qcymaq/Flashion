@@ -43,7 +43,10 @@ async def create_order(
 
     # Verify all products exist and are in stock.
     # Prices and totals always come from the database, never from the client.
+    # Quantities are added up per product, so several lines for the same
+    # product cannot together order more than the stock.
     items_total = 0.0
+    requested_quantities = {}
     for item in order.items:
         if item.quantity < 1:
             raise HTTPException(
@@ -61,7 +64,9 @@ async def create_order(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Product {item.product_id} not found"
             )
-        if product["stock"] < item.quantity:
+        product_key = str(product["_id"])  # normalised, e.g. upper/lower-case hex IDs
+        requested_quantities[product_key] = requested_quantities.get(product_key, 0) + item.quantity
+        if product["stock"] < requested_quantities[product_key]:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Not enough stock for product {product['name']}"

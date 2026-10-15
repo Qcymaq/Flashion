@@ -146,3 +146,47 @@ def test_unknown_product_is_rejected(db):
 
     assert exc_info.value.status_code == 404
     assert db.orders.docs == {}
+
+
+def test_more_than_stock_is_rejected(db):
+    order = make_order(
+        items=[{"product_id": str(CREAM_ID), "product_name": "y", "quantity": 6, "price": 1.0}],
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        place(order)
+
+    assert exc_info.value.status_code == 400
+    assert db.orders.docs == {}
+    assert db.products.docs[CREAM_ID]["stock"] == 5
+
+
+def test_duplicate_lines_cannot_order_more_than_stock_together(db):
+    # Each line alone fits the stock of 5, but together they ask for 6.
+    order = make_order(
+        items=[
+            {"product_id": str(CREAM_ID), "product_name": "y", "quantity": 3, "price": 1.0},
+            {"product_id": str(CREAM_ID), "product_name": "y", "quantity": 3, "price": 1.0},
+        ],
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        place(order)
+
+    assert exc_info.value.status_code == 400
+    assert db.orders.docs == {}
+    assert db.products.docs[CREAM_ID]["stock"] == 5
+
+
+def test_duplicate_lines_within_stock_are_accepted(db):
+    order = make_order(
+        items=[
+            {"product_id": str(CREAM_ID), "product_name": "y", "quantity": 2, "price": 1.0},
+            {"product_id": str(CREAM_ID), "product_name": "y", "quantity": 3, "price": 1.0},
+        ],
+    )
+
+    created = place(order)
+
+    assert created.total_price == 99000.0 * 5 + orders_module.SHIPPING_FEE
+    assert db.products.docs[CREAM_ID]["stock"] == 0
