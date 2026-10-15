@@ -6,8 +6,8 @@ Flashion is an online shop for beauty products with a virtual makeup try-on feat
 
 This is a course project, not a finished commercial product.
 
-- The main shopping, admin and virtual makeup features work, as shown in the demo below.
-- Most testing was done by hand. A small backend test suite (pytest) covers the order total calculation and checks that the old free membership upgrade endpoint is gone. There are no frontend tests.
+- The main shopping, admin and virtual makeup features were implemented and tested by hand.
+- A small backend test suite (pytest) covers the order total calculation and checks that the old free membership upgrade endpoint is gone. There are no frontend tests.
 - Payment is a manual bank transfer that an admin confirms. There is no payment gateway.
 - Some parts are simplified. For example, password reset requests are kept in server memory and handled by an admin.
 
@@ -40,32 +40,19 @@ My role (Mai Anh Quan, [@Qcymaq](https://github.com/Qcymaq)):
 
 ## Demo
 
-### 1. Frontend tour (public pages)
-*A walkthrough of the public pages without logging in.*
+The two GIFs below are short (about 5 seconds) screen recordings of the homepage. They do not show logging in, the cart and checkout, the virtual makeup page or the admin panel.
 
-![Frontend Tour](docs/media/frontend-tour.gif)
+### 1. Top of the homepage
 
-**What you will see:**
-- Homepage and navigation
-- Product browsing and search
-- Beauty tips and tutorials
-- Virtual makeup page
-- Public product catalog
-- Layout on different screen sizes
+![Top of the homepage](docs/media/frontend-tour.gif)
 
-### 2. Features demo (logged-in user and admin)
-*Core features and user interactions.*
+*A short scroll through the top of the homepage: the virtual makeup banner, the product carousel and the start of the try-on guide.*
 
-![Features Demo](docs/media/features-demo.gif)
+### 2. Homepage down to the contact form
 
-**Features shown:**
-- Login
-- Shopping cart and checkout
-- Product reviews and ratings
-- Admin panel
-- Order management
-- Creating beauty tips
-- User profile
+![Homepage down to the contact form](docs/media/features-demo.gif)
+
+*A short scroll from the top of the homepage down to the contact form, past the product carousel, the try-on guide and the beauty blog section.*
 
 ## Tech stack
 
