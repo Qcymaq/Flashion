@@ -28,6 +28,11 @@ services:
       context: ./frontend
       args:
         - REACT_APP_API_URL=https://flashion.xyz/api
+        # Optional bank transfer details, read from .env (see .env.example)
+        - REACT_APP_BANK_NAME=${REACT_APP_BANK_NAME:-}
+        - REACT_APP_BANK_ACCOUNT_NUMBER=${REACT_APP_BANK_ACCOUNT_NUMBER:-}
+        - REACT_APP_BANK_ACCOUNT_HOLDER=${REACT_APP_BANK_ACCOUNT_HOLDER:-}
+        - REACT_APP_BANK_QR_URL=${REACT_APP_BANK_QR_URL:-}
     restart: unless-stopped
     depends_on:
       - backend
