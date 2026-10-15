@@ -197,58 +197,6 @@ async def update_profile(
         updated_at=updated_user.get("updated_at", now)
     ) 
 
-@router.post("/membership/upgrade", response_model=User)
-async def upgrade_membership(
-    membership: str = Body(..., embed=True, description="Membership tier: gold or diamond"),
-    current_user: UserInDB = Depends(get_current_active_user)
-):
-    db = get_database()
-    allowed_memberships = {"gold": 50, "diamond": float('inf')}
-    prices = {"gold": 49000, "diamond": 199000}
-    if membership not in allowed_memberships:
-        raise HTTPException(status_code=400, detail="Invalid membership tier. Choose 'gold' or 'diamond'.")
-    if current_user.membership == membership:
-        raise HTTPException(status_code=400, detail=f"You already have {membership} membership.")
-
-    old_membership = current_user.membership
-    price = prices[membership]
-    transaction_id = str(uuid.uuid4())
-    status = "success"  # Simulate payment status
-    upgraded_at = datetime.utcnow()
-
-    # Simulate payment (in production, integrate with payment gateway)
-    # Here, we just assume payment is successful
-    # Update user membership and reset try_on_count
-    update_data = {
-        "membership": membership,
-        # Optionally reset try_on_count or keep as is. Here, we keep the current count.
-        # "try_on_count": 0,
-        "updated_at": upgraded_at
-    }
-    await db.users.update_one({"_id": current_user.id}, {"$set": update_data})
-    updated_user = await db.users.find_one({"_id": current_user.id})
-
-    # Mark all previous pending requests as approved
-    await db.membership_upgrades.update_many(
-        {"user_id": str(current_user.id), "status": "pending"},
-        {"$set": {"status": "approved"}}
-    )
-
-    # Log the upgrade in the membership_upgrades collection
-    log_entry = {
-        "user_id": str(current_user.id),
-        "email": current_user.email,
-        "old_membership": old_membership,
-        "new_membership": membership,
-        "price": price,
-        "upgraded_at": upgraded_at,
-        "transaction_id": transaction_id,
-        "status": status
-    }
-    await db.membership_upgrades.insert_one(log_entry)
-
-    return User.from_db(UserInDB(**updated_user)) 
-
 @router.post("/membership/upgrade-request")
 async def request_membership_upgrade(
     membership: str = Body(..., embed=True, description="Membership tier: gold or diamond"),
