@@ -10,7 +10,7 @@ done
 echo "MongoDB is ready!"
 
 # Create admin user
-echo "Creating admin user..."
+echo "Creating admin user (only if ADMIN_EMAIL and ADMIN_PASSWORD are set)..."
 python -m app.create_admin
 
 # Start the FastAPI application

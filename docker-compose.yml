@@ -9,6 +9,8 @@ services:
       - ENV=${ENV:-production}
       - MONGO_URI=${MONGO_URI}
       - JWT_SECRET=${JWT_SECRET}
+      - ADMIN_EMAIL=${ADMIN_EMAIL:-}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
     ports:
       - "8000:8000"
     volumes:
