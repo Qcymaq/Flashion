@@ -165,9 +165,10 @@ Flashion/
 │   │   ├── schemas/        # Pydantic schemas for data validation
 │   │   ├── utils/          # Authentication, database, and utility functions
 │   │   ├── static/         # File uploads and static assets
+│   │   ├── Dockerfile      # Backend container configuration (build context: repo root)
 │   │   └── main.py         # FastAPI application entry point
-│   ├── Dockerfile          # Backend container configuration
-│   └── requirements.txt    # Python dependencies
+│   ├── startup.sh          # Container entrypoint (wait for DB, create admin, start API)
+│   └── requirements.txt    # Python dependencies (installed by the Dockerfile)
 ├── frontend/               # React frontend
 │   ├── src/
 │   │   ├── components/     # Reusable React components
