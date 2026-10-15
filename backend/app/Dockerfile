@@ -4,6 +4,10 @@ FROM python:3.11-slim
 # Set work directory to /backend
 WORKDIR /backend
 
+# Default to production so a plain "docker run" without ENV still requires a
+# real JWT_SECRET. docker-compose.yml and "docker run -e ENV=..." override this.
+ENV ENV=production
+
 # Install build dependencies and system libraries for OpenCV
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \

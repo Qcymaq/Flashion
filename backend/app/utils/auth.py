@@ -19,17 +19,26 @@ logger = logging.getLogger(__name__)
 # Example values from .env.example / old docs. They must never be used as a real secret.
 _PLACEHOLDER_SECRETS = {"change-me", "changeme", "your-secret-key"}
 
+# Only these ENV values allow running without a real JWT_SECRET.
+_DEVELOPMENT_ENVIRONMENTS = {"development", "dev"}
+_PRODUCTION_ENVIRONMENTS = {"production", "prod"}
+
 
 def get_environment() -> str:
     """Return the deployment environment from ENV (or ENVIRONMENT), lower-cased.
 
-    Defaults to "development" when neither variable is set.
+    Defaults to "development" when neither variable is set. backend/startup.sh
+    uses the same rule, and the backend Docker image sets ENV=production.
     """
     return (os.getenv("ENV") or os.getenv("ENVIRONMENT") or "development").strip().lower()
 
 
+def is_development() -> bool:
+    return get_environment() in _DEVELOPMENT_ENVIRONMENTS
+
+
 def is_production() -> bool:
-    return get_environment() in {"production", "prod"}
+    return get_environment() in _PRODUCTION_ENVIRONMENTS
 
 
 def _is_placeholder_secret(value: str) -> bool:
@@ -40,17 +49,20 @@ def _is_placeholder_secret(value: str) -> bool:
 def _load_jwt_secret() -> str:
     """Read the JWT signing secret from JWT_SECRET (preferred) or SECRET_KEY.
 
-    In production a missing or placeholder secret stops the app from starting.
-    In development a random secret is generated for this process only.
+    Only in development (ENV=development or dev, or no ENV at all) is a random
+    secret generated for this process. In every other environment, including
+    unknown values such as "staging" or a typo, a missing or placeholder secret
+    stops the app from starting (fail closed).
     """
     secret = (os.getenv("JWT_SECRET") or os.getenv("SECRET_KEY") or "").strip()
     if secret and not _is_placeholder_secret(secret):
         return secret
 
-    if is_production():
+    if not is_development():
         raise RuntimeError(
-            "JWT_SECRET is not set or still uses an example placeholder. "
-            "Refusing to start in production. Set JWT_SECRET to a long random value, "
+            f"JWT_SECRET is not set or still uses an example placeholder (ENV={get_environment()}). "
+            "Refusing to start: a random secret is only allowed when ENV is development or dev. "
+            "Set JWT_SECRET to a long random value, "
             "for example the output of: python -c \"import secrets; print(secrets.token_urlsafe(64))\""
         )
 
