@@ -50,4 +50,9 @@ app.include_router(reviews.router, prefix="/api", tags=["reviews"])
 
 @app.get("/")
 async def root():
-    return {"message": "Welcome to Flashion API"} 
+    return {"message": "Welcome to Flashion API"}
+
+@app.get("/health")
+async def health():
+    """Liveness check used by the docker-compose healthcheck."""
+    return {"status": "ok"} 
