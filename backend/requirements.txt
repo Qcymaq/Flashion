@@ -8,7 +8,8 @@ uvicorn==0.24.0
 python-multipart==0.0.18
 
 # Data validation
-pydantic>=2.7,<3
+# Pinned to the version the backend tests were run with.
+pydantic==2.14.1
 email-validator==2.1.0.post1
 
 # Database (MongoDB)
@@ -17,7 +18,8 @@ pymongo==4.6.1
 beanie==1.29.0
 
 # Authentication
-python-jose[cryptography]==3.3.0
+# 3.4.0+ fixes CVE-2024-33663 and CVE-2024-33664.
+python-jose[cryptography]==3.5.0
 passlib==1.7.4
 bcrypt==4.0.1
 
