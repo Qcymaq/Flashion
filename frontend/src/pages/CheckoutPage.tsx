@@ -21,6 +21,7 @@ import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
 import { fetchWithAuth } from '../utils/api';
 import { endpoints } from '../config/api';
+import { bankTransferDetails, hasBankTransferDetails, PAYMENT_DETAILS_UNAVAILABLE_MESSAGE } from '../config/payment';
 
 const CheckoutContainer = styled(Container)({
   paddingTop: '40px',
@@ -217,9 +218,9 @@ const CheckoutPage = () => {
           state: {
             order: orderData,
             bankDetails: {
-              bankName: 'Vietcombank',
-              accountNumber: '0631000524772',
-              accountHolder: 'PHAM DANG KHOI',
+              bankName: bankTransferDetails.bankName,
+              accountNumber: bankTransferDetails.accountNumber,
+              accountHolder: bankTransferDetails.accountHolder,
               amount: orderData.total_price,
               orderId: orderData._id
             }
@@ -352,18 +353,30 @@ const CheckoutPage = () => {
                       >
                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                           <Typography>Chuyển khoản ngân hàng</Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            Ngân hàng: Vietcombank
-                          </Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            Số tài khoản: 0631000524772
-                          </Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            Chủ tài khoản: PHAM DANG KHOI
-                          </Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            Nội dung chuyển khoản: FLASHION + Tên khách hàng + Số điện thoại
-                          </Typography>
+                          {hasBankTransferDetails ? (
+                            <>
+                              {bankTransferDetails.bankName && (
+                                <Typography variant="body2" color="text.secondary">
+                                  Ngân hàng: {bankTransferDetails.bankName}
+                                </Typography>
+                              )}
+                              <Typography variant="body2" color="text.secondary">
+                                Số tài khoản: {bankTransferDetails.accountNumber}
+                              </Typography>
+                              {bankTransferDetails.accountHolder && (
+                                <Typography variant="body2" color="text.secondary">
+                                  Chủ tài khoản: {bankTransferDetails.accountHolder}
+                                </Typography>
+                              )}
+                              <Typography variant="body2" color="text.secondary">
+                                Nội dung chuyển khoản: FLASHION + Tên khách hàng + Số điện thoại
+                              </Typography>
+                            </>
+                          ) : (
+                            <Typography variant="body2" color="text.secondary">
+                              {PAYMENT_DETAILS_UNAVAILABLE_MESSAGE}
+                            </Typography>
+                          )}
                         </Box>
                       </PaymentMethodButton>
                     }

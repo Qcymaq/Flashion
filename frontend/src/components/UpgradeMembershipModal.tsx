@@ -59,6 +59,7 @@ import {
   QrCode as QrIcon,
 } from '@mui/icons-material';
 import { endpoints } from '../config/api';
+import { bankTransferDetails, hasBankTransferDetails, PAYMENT_DETAILS_UNAVAILABLE_MESSAGE } from '../config/payment';
 
 interface UpgradeMembershipModalProps {
   open: boolean;
@@ -99,17 +100,6 @@ const plans = [
     color: '#B9F2FF',
     popular: true
   },
-];
-
-// Banking information
-const bankingInfo = [
-  {
-    bank: 'Vietcombank',
-    accountNumber: '0631000524772',
-    accountName: 'PHAM DANG KHOI',
-    branch: 'Chi nhánh TP.HCM',
-    qrCode: '/public/images/vietcombank-qr.png'
-  }
 ];
 
 const UpgradeMembershipModal: React.FC<UpgradeMembershipModalProps> = ({ open, onClose, user }) => {
@@ -430,69 +420,81 @@ const UpgradeMembershipModal: React.FC<UpgradeMembershipModalProps> = ({ open, o
                     </Box>
                   </AccordionSummary>
                   <AccordionDetails>
-                    <Grid container spacing={2}>
-                      <Grid item xs={12} md={6}>
-                        <Card sx={{ p: 2, bgcolor: '#f8f9fa' }}>
-                          <Typography variant="subtitle2" fontWeight={600} gutterBottom>
-                            Vietcombank
-                          </Typography>
-                          <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                            <Typography variant="body2" sx={{ mr: 1 }}>Số tài khoản:</Typography>
-                            <Typography variant="body2" fontWeight={600} fontFamily="monospace">
-                              0631000524772
-                            </Typography>
-                            <IconButton 
-                              size="small" 
-                              onClick={() => {
-                                navigator.clipboard.writeText('0631000524772');
-                                setCopiedText('0631000524772');
-                                setTimeout(() => setCopiedText(null), 2000);
-                              }}
-                            >
-                              <CopyIcon fontSize="small" />
-                            </IconButton>
-                          </Box>
-                          <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                            <Typography variant="body2" sx={{ mr: 1 }}>Chủ tài khoản:</Typography>
-                            <Typography variant="body2" fontWeight={600}>
-                              PHAM DANG KHOI
-                            </Typography>
-                          </Box>
-                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            <Typography variant="body2" sx={{ mr: 1 }}>Nội dung:</Typography>
-                            <Typography variant="body2" fontWeight={600} fontFamily="monospace">
-                              {user?.email} - {selectedPlan}
-                            </Typography>
-                            <IconButton 
-                              size="small" 
-                              onClick={() => {
-                                const content = `${user?.email} - ${selectedPlan}`;
-                                navigator.clipboard.writeText(content);
-                                setCopiedText(content);
-                                setTimeout(() => setCopiedText(null), 2000);
-                              }}
-                            >
-                              <CopyIcon fontSize="small" />
-                            </IconButton>
-                          </Box>
-                        </Card>
+                    {hasBankTransferDetails ? (
+                      <Grid container spacing={2}>
+                        <Grid item xs={12} md={6}>
+                          <Card sx={{ p: 2, bgcolor: '#f8f9fa' }}>
+                            {bankTransferDetails.bankName && (
+                              <Typography variant="subtitle2" fontWeight={600} gutterBottom>
+                                {bankTransferDetails.bankName}
+                              </Typography>
+                            )}
+                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                              <Typography variant="body2" sx={{ mr: 1 }}>Số tài khoản:</Typography>
+                              <Typography variant="body2" fontWeight={600} fontFamily="monospace">
+                                {bankTransferDetails.accountNumber}
+                              </Typography>
+                              <IconButton 
+                                size="small" 
+                                onClick={() => {
+                                  navigator.clipboard.writeText(bankTransferDetails.accountNumber);
+                                  setCopiedText(bankTransferDetails.accountNumber);
+                                  setTimeout(() => setCopiedText(null), 2000);
+                                }}
+                              >
+                                <CopyIcon fontSize="small" />
+                              </IconButton>
+                            </Box>
+                            {bankTransferDetails.accountHolder && (
+                              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                                <Typography variant="body2" sx={{ mr: 1 }}>Chủ tài khoản:</Typography>
+                                <Typography variant="body2" fontWeight={600}>
+                                  {bankTransferDetails.accountHolder}
+                                </Typography>
+                              </Box>
+                            )}
+                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                              <Typography variant="body2" sx={{ mr: 1 }}>Nội dung:</Typography>
+                              <Typography variant="body2" fontWeight={600} fontFamily="monospace">
+                                {user?.email} - {selectedPlan}
+                              </Typography>
+                              <IconButton 
+                                size="small" 
+                                onClick={() => {
+                                  const content = `${user?.email} - ${selectedPlan}`;
+                                  navigator.clipboard.writeText(content);
+                                  setCopiedText(content);
+                                  setTimeout(() => setCopiedText(null), 2000);
+                                }}
+                              >
+                                <CopyIcon fontSize="small" />
+                              </IconButton>
+                            </Box>
+                          </Card>
+                        </Grid>
+
+                        {bankTransferDetails.qrImageUrl && (
+                          <Grid item xs={12} md={6}>
+                            <Card sx={{ p: 2, bgcolor: '#f8f9fa' }}>
+                              <Typography variant="subtitle2" fontWeight={600} gutterBottom>
+                                QR Code thanh toán
+                              </Typography>
+                              <Box sx={{ textAlign: 'center' }}>
+                                <img 
+                                  src={bankTransferDetails.qrImageUrl} 
+                                  alt="QR Code" 
+                                  style={{ width: 150, height: 150 }}
+                                />
+                              </Box>
+                            </Card>
+                          </Grid>
+                        )}
                       </Grid>
-                      
-                      <Grid item xs={12} md={6}>
-                        <Card sx={{ p: 2, bgcolor: '#f8f9fa' }}>
-                          <Typography variant="subtitle2" fontWeight={600} gutterBottom>
-                            QR Code thanh toán
-                          </Typography>
-                          <Box sx={{ textAlign: 'center' }}>
-                            <img 
-                              src="/images/vietcombank-qr.png" 
-                              alt="QR Code" 
-                              style={{ width: 150, height: 150 }}
-                            />
-                          </Box>
-                        </Card>
-                      </Grid>
-                    </Grid>
+                    ) : (
+                      <Alert severity="info">
+                        {PAYMENT_DETAILS_UNAVAILABLE_MESSAGE}
+                      </Alert>
+                    )}
 
                     {copiedText && (
                       <Alert severity="success" sx={{ mt: 2 }}>
