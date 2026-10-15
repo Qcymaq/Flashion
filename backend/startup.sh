@@ -1,9 +1,11 @@
 #!/bin/bash
 
-# Wait for MongoDB to be ready
+# Wait for MongoDB to be ready.
+# Only the last line of the error (exception type and message) is shown, so a
+# wrong or empty MONGO_URI is visible in the logs instead of looping silently.
 echo "Waiting for MongoDB to be ready..."
-until python -c "import asyncio; from app.utils.database import connect_to_mongo; asyncio.run(connect_to_mongo())" 2>/dev/null; do
-  echo "MongoDB not ready yet, waiting..."
+until MONGO_ERROR="$(python -c "import asyncio; from app.utils.database import connect_to_mongo; asyncio.run(connect_to_mongo())" 2>&1 >/dev/null)"; do
+  echo "MongoDB not ready yet, waiting... (${MONGO_ERROR##*$'\n'})"
   sleep 2
 done
 
