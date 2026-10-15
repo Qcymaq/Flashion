@@ -1,0 +1,13 @@
+# Keep local files out of the backend image (build context: repository root).
+# Never copy real environment files or local virtual environments into an image.
+**/.env
+**/.env.*
+!**/.env.example
+**/.venv
+**/venv
+**/env
+**/__pycache__
+**/*.py[cod]
+**/.pytest_cache
+**/node_modules
+.git
