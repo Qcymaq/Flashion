@@ -1,417 +1,295 @@
-# 🛍️ Flashion - E-commerce Platform
+# Flashion - Beauty E-commerce Platform
 
-A modern e-commerce platform built with React, FastAPI, and MongoDB Atlas. Features include user management, product catalog, shopping cart, order management, admin dashboard, virtual makeup try-on, and comprehensive beauty content management.
+Flashion is an online shop for beauty products with a virtual makeup try-on feature. It was built as a team project for a startup course in 2025. The backend uses FastAPI and MongoDB, the frontend uses React and TypeScript, and both can run in Docker. The user interface is in Vietnamese.
 
-## 🚀 Features
+## Project status
 
-### User Features
-- **User Authentication** - Register, login, password reset with admin approval
-- **Product Browsing** - Browse products by category, search, filters with product summaries
-- **Shopping Cart** - Add, remove, update cart items with persistent storage
-- **Order Management** - Place orders, track order status, view order history
-- **Virtual Makeup** - Try-on makeup products virtually with photo upload
-- **Beauty Tips** - Read beauty advice, tips, and tutorials by category
-- **Product Reviews** - Write and read product reviews (login required)
-- **Profile Management** - Update profile, change password, view order history
-- **Membership System** - Free, Gold, Diamond tiers with different benefits
-- **Consultation Booking** - Book beauty consultations with professionals
+This is a course project, not a finished commercial product.
 
-### Admin Features
-- **Dashboard** - Sales analytics, user statistics, revenue tracking
-- **Product Management** - Add, edit, delete products with summary and description fields
-- **Order Management** - Process orders, update status, view user details
-- **User Management** - Manage users, reset passwords, view user profiles
-- **Password Reset Requests** - Handle password reset requests manually
-- **Category Management** - Manage product categories and beauty tip categories
-- **Beauty Tips Management** - Create and manage beauty content with categories
-- **Review Management** - Moderate product reviews and user feedback
-- **Upload Management** - Handle file uploads for products and beauty tips
+- The main shopping, admin and virtual makeup features work, as shown in the demo below.
+- Most testing was done by hand. A small backend test suite (pytest) covers the order total calculation and checks that the old free membership upgrade endpoint is gone. There are no frontend tests.
+- Payment is a manual bank transfer that an admin confirms. There is no payment gateway.
+- Some parts are simplified. For example, password reset requests are kept in server memory and handled by an admin.
 
-## 🎬 Demo Videos
+## Team & my role
 
-### 1. **Frontend Tour (Public Access)**
-*Complete walkthrough of all public pages and features without authentication*
+Flashion was a team project for a startup course (2025).
+
+My role (Mai Anh Quan, [@Qcymaq](https://github.com/Qcymaq)):
+
+- Main developer of the application.
+- Market research and user surveys.
+
+## Features
+
+### For customers
+- **Accounts** - Register and log in with email or phone number, edit profile, change password. Password reset requests are handled by an admin.
+- **Product catalog** - Browse by category, search, and view product details (summary and full description).
+- **Cart and checkout** - Add products to the cart, check out with a shipping address and phone number, pay by bank transfer.
+- **Orders** - View order history and status (pending, processing, shipped, delivered, cancelled). Pending orders can be cancelled.
+- **Virtual makeup** - Upload a photo and try lip and cheek colors. Face landmarks come from MediaPipe Face Mesh; colors are applied with OpenCV.
+- **Memberships** - Free, Gold and Diamond tiers with different virtual try-on limits. Users send an upgrade request with a payment proof; an admin reviews it and changes the tier.
+- **Beauty tips** - Articles by category, with comments and likes.
+- **Product reviews** - Write and read reviews (login required).
+- **Consultations** - Book a beauty consultation.
+
+### For admins
+- **Dashboard** - Sales, order and user statistics; sales reports with CSV export.
+- **Management pages** - Products (with image upload), orders, users, beauty tips and consultations.
+- **Requests** - Membership upgrade requests and password reset requests.
+
+## Demo
+
+### 1. Frontend tour (public pages)
+*A walkthrough of the public pages without logging in.*
 
 ![Frontend Tour](docs/media/frontend-tour.gif)
 
-**What you'll see:**
+**What you will see:**
 - Homepage and navigation
 - Product browsing and search
 - Beauty tips and tutorials
-- Virtual makeup interface
+- Virtual makeup page
 - Public product catalog
-- Responsive design across devices
+- Layout on different screen sizes
 
-### 2. **Interactive Features Demo (User Experience)**
-*Hands-on demonstration of core features and user interactions*
+### 2. Features demo (logged-in user and admin)
+*Core features and user interactions.*
 
 ![Features Demo](docs/media/features-demo.gif)
 
-**Features demonstrated:**
-- User authentication and login
+**Features shown:**
+- Login
 - Shopping cart and checkout
 - Product reviews and ratings
-- Admin panel functionality
+- Admin panel
 - Order management
-- Beauty tips creation
-- User profile management
+- Creating beauty tips
+- User profile
 
-## 🛠️ Tech Stack
+## Tech stack
 
-### Backend
-- **FastAPI** - Modern Python web framework with automatic API documentation
-- **MongoDB Atlas** - Cloud-hosted NoSQL database for persistent data storage
-- **JWT** - Secure authentication with token-based sessions
-- **Pydantic** - Data validation and serialization
-- **Python 3.11+** - Latest Python features and performance
-- **Motor** - Async MongoDB driver for high-performance database operations
+**Backend:** Python 3.11, FastAPI, MongoDB (Motor and Beanie), Pydantic v2, JWT login (python-jose, passlib with bcrypt), MediaPipe and OpenCV for virtual makeup, pandas for CSV reports.
 
-### Frontend
-- **React 18** - Latest React features with hooks and concurrent rendering
-- **TypeScript** - Type safety and better development experience
-- **Material-UI (MUI)** - Modern component library with custom theming
-- **React Router** - Client-side routing and navigation
-- **Context API** - State management for authentication and user data
-- **Axios** - HTTP client for API communication
+**Frontend:** React 18, TypeScript, Material UI, React Router, React Context for state, Framer Motion.
 
-### DevOps & Infrastructure
-- **Docker** - Containerization for consistent deployment
-- **Docker Compose** - Multi-container orchestration
-- **Nginx** - Reverse proxy and static file serving
-- **MongoDB Atlas** - Cloud database with automatic backups and scaling
-- **GitHub** - Version control and deployment
+**Infrastructure:** Docker and Docker Compose, Nginx (serves the frontend build), MongoDB Atlas.
 
-## 📋 Prerequisites
+## Getting started with Docker
 
-- Docker and Docker Compose
-- Node.js 18+ (for local development)
-- Python 3.11+ (for local development)
-- MongoDB Atlas account (for production database)
+Requirements: Docker with Docker Compose, and a MongoDB database (for example MongoDB Atlas).
 
-## 🚀 Quick Start
-
-**Note:** The URLs below are for production reference. For local development, use `http://localhost:3000` (frontend) and `http://localhost:8000` (backend).
-
-### 1. Clone the Repository
 ```bash
-git clone <repository-url>
+# 1. Clone the repository
+git clone https://github.com/Qcymaq/Flashion.git
 cd Flashion
-```
 
-### 2. Environment Setup
-```bash
-# Copy environment variables
+# 2. Create your configuration
 cp .env.example .env
+# Edit .env: set MONGO_URI and JWT_SECRET (see "Configuration" below).
+# Generate a JWT secret with:
+python -c "import secrets; print(secrets.token_urlsafe(64))"
 
-# Edit .env file with your MongoDB Atlas configuration
-nano .env
-```
-
-### 3. Build and Run with Docker
-```bash
-# Build images (no cache for clean build)
-docker-compose build --no-cache
-
-# Start services
+# 3. Build and start
+docker-compose build
 docker-compose up -d
-
-# View logs
 docker-compose logs -f
 ```
 
-### 4. Access the Application
-- **Frontend**: https://flashion.xyz (production) | http://localhost:3000 (development)
-- **Backend API**: https://flashion.xyz/api (production) | http://localhost:8000/api (development)
-- **API Documentation**: https://flashion.xyz/docs (production) | http://localhost:8000/docs (development)
+With the default `ENV=production`, the backend refuses to start until `JWT_SECRET` is set to a real value.
 
-## 🔧 Configuration
+After start-up:
 
-### Environment Variables (.env)
+- Backend API: http://localhost:8000/api
+- Interactive API documentation (Swagger UI): http://localhost:8000/api/docs
+- Health check: http://localhost:8000/health
 
-Create a `.env` file in the root directory:
+Notes:
 
-```env
-# MongoDB Atlas Database
-MONGO_URI=mongodb+srv://username:password@cluster.mongodb.net/flashion?retryWrites=true&w=majority
+- The frontend container does not publish a port. In the original deployment, an Nginx server on the host forwarded traffic to it. For local work, run the frontend with npm (see below).
+- The frontend build uses `REACT_APP_API_URL` from `docker-compose.yml` (currently `https://flashion.xyz/api`). Change it to your own domain before building.
 
-# Environment: production or development
-ENV=production
+## Local development without Docker
 
-# JWT Security (required in production; generate a long random value)
-JWT_SECRET=change-me
-ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=30
+Requirements: Python 3.11, Node.js 18 or newer, and a MongoDB database (local or Atlas).
 
-# Server
-HOST=0.0.0.0
-PORT=8000
-DEBUG=False
+**Backend**
 
-# CORS
-ALLOWED_ORIGINS=https://flashion.xyz,https://www.flashion.xyz
-
-# Frontend
-REACT_APP_API_URL=https://flashion.xyz/api
+```bash
+cd backend
+python3.11 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env      # ENV=development; set MONGO_URI if not using local MongoDB
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-## 📁 Project Structure
+Run the backend from the `backend` folder, because the app uses relative paths for uploads and static files.
+
+**Frontend**
+
+```bash
+cd frontend
+npm install
+cp .env.example .env.local   # set REACT_APP_API_URL=http://localhost:8000/api
+npm start                    # http://localhost:3000
+```
+
+**Tests**
+
+```bash
+cd backend
+pip install -r requirements-dev.txt
+pytest
+```
+
+The tests use small in-memory fakes instead of MongoDB, so no database is needed.
+
+## Configuration
+
+Copy `.env.example` to `.env` (repository root, used by Docker Compose) or `backend/.env.example` to `backend/.env` (local backend). Never commit real values.
+
+### Backend variables
+
+| Variable | Required | Description |
+| --- | --- | --- |
+| `ENV` | No | `production` or `development`. Default: `development` (Docker Compose defaults to `production`). In production the backend refuses to start without a real `JWT_SECRET`, and uvicorn runs without auto-reload. In development uvicorn auto-reloads and logs at debug level. |
+| `MONGO_URI` | Yes | MongoDB connection string. Default outside Docker: `mongodb://localhost:27017`. |
+| `JWT_SECRET` | Yes in production | Secret used to sign login tokens. `SECRET_KEY` is accepted as a fallback name. In development, if it is missing, a random secret is generated at each start (all logins become invalid after a restart). |
+| `ADMIN_EMAIL`, `ADMIN_PASSWORD` | No | If both are set, `backend/startup.sh` creates this admin account when it does not exist yet. Admin creation is skipped when they are empty or the password is still the `change-me` placeholder. The password is never written to the logs. |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | No | Login token lifetime in minutes. Default: 43200 (30 days). |
+| `ALLOWED_ORIGINS` | No | Comma-separated list of allowed CORS origins. Default: `http://localhost:3000`. |
+
+`docker-compose.yml` passes `ENV`, `MONGO_URI`, `JWT_SECRET`, `ADMIN_EMAIL` and `ADMIN_PASSWORD` to the backend container. To use `ACCESS_TOKEN_EXPIRE_MINUTES` or `ALLOWED_ORIGINS` with Docker, add them to the `environment` list there. The other entries in `.env.example` (`DATABASE_NAME`, `ALGORITHM`, `HOST`, `PORT`, `DEBUG`) are not read by the code at the moment.
+
+### Frontend variables
+
+These are read when the frontend is built: from `frontend/.env.local` for `npm start` / `npm run build`, or from the root `.env` as build arguments in Docker Compose.
+
+| Variable | Description |
+| --- | --- |
+| `REACT_APP_API_URL` | Base URL of the backend API, for example `http://localhost:8000/api`. |
+| `REACT_APP_BANK_NAME` | Bank name for bank transfer payments (optional). |
+| `REACT_APP_BANK_ACCOUNT_NUMBER` | Bank account number (optional). If empty, the shop says that payment details are provided after ordering and asks the customer to contact the shop. |
+| `REACT_APP_BANK_ACCOUNT_HOLDER` | Account holder name (optional). |
+| `REACT_APP_BANK_QR_URL` | URL of a payment QR code image (optional). The QR code is hidden when empty. |
+
+`REACT_APP_` values are built into the public JavaScript files, so every visitor can see them. Do not put secrets there.
+
+## Project structure
 
 ```
 Flashion/
-├── backend/                 # FastAPI backend
+├── backend/
 │   ├── app/
-│   │   ├── models/         # Database models (User, Product, Order, etc.)
-│   │   ├── routes/         # API endpoints and business logic
-│   │   ├── schemas/        # Pydantic schemas for data validation
-│   │   ├── utils/          # Authentication, database, and utility functions
-│   │   ├── static/         # File uploads and static assets
-│   │   ├── Dockerfile      # Backend container configuration (build context: repo root)
-│   │   └── main.py         # FastAPI application entry point
-│   ├── startup.sh          # Container entrypoint (wait for DB, create admin, start API)
-│   └── requirements.txt    # Python dependencies (installed by the Dockerfile)
-├── frontend/               # React frontend
+│   │   ├── models/           # Database models (User, Product, Order, ...)
+│   │   ├── routes/           # API endpoints
+│   │   ├── schemas/          # Pydantic schemas for validation
+│   │   ├── utils/            # Authentication, database, virtual makeup
+│   │   ├── static/           # Uploaded files and static assets
+│   │   ├── create_admin.py   # Creates the admin user from ADMIN_EMAIL / ADMIN_PASSWORD
+│   │   ├── Dockerfile        # Backend image (build context: repository root)
+│   │   └── main.py           # FastAPI application entry point
+│   ├── tests/                # pytest tests (no database needed)
+│   ├── startup.sh            # Container entrypoint: wait for DB, create admin, start API
+│   ├── requirements.txt      # Python dependencies
+│   └── requirements-dev.txt  # requirements.txt + pytest
+├── frontend/
 │   ├── src/
-│   │   ├── components/     # Reusable React components
-│   │   ├── pages/         # Page-level components
-│   │   ├── contexts/      # React contexts for state management
-│   │   ├── services/      # API service functions
-│   │   ├── types/         # TypeScript type definitions
-│   │   └── utils/         # Utility functions and helpers
-│   ├── public/            # Static assets and index.html
-│   ├── Dockerfile         # Frontend container configuration
-│   ├── nginx.conf         # Nginx configuration for production
-│   └── package.json       # Node.js dependencies
-├── docker-compose.yml      # Docker orchestration configuration
-├── .gitignore             # Git ignore rules for production
-└── README.md              # Project documentation
+│   │   ├── components/       # Reusable React components
+│   │   ├── config/           # API endpoints and payment settings
+│   │   ├── contexts/         # React contexts (auth, cart)
+│   │   ├── pages/            # Page components
+│   │   ├── services/         # API service functions
+│   │   └── types/            # TypeScript types
+│   ├── public/               # Static assets and index.html
+│   ├── Dockerfile            # Frontend image (build + Nginx)
+│   ├── nginx.conf            # Nginx configuration
+│   └── .env.example          # Frontend variables
+├── docs/media/               # Demo GIFs
+├── docker-compose.yml
+└── .env.example
 ```
 
-## 🔐 Authentication & Security
+## Security
 
-### User Roles
-- **User** - Regular customer access with shopping and review capabilities
-- **Admin** - Full administrative access to all system features
+- Login with JWT tokens; passwords are hashed with bcrypt.
+- Secrets (JWT secret, admin password, database URI) come from environment variables. In production the backend does not start without a real JWT secret.
+- Order item prices and totals are calculated on the server from the product data. New orders always start as `pending`.
+- Membership tier changes are made by an admin.
+- Input is validated with Pydantic schemas.
 
-### Security Features
-- JWT-based authentication with configurable expiration
-- Password hashing with bcrypt
-- CORS protection for cross-origin requests
-- Input validation with Pydantic schemas
-- File upload security and validation
+## Main API endpoints
 
-## 🛒 Key Features Explained
+All endpoints are listed in the interactive documentation at `/api/docs`.
 
-### Product Management
-- **Summary Field**: Brief product descriptions for main display
-- **Detailed Description**: Comprehensive product information in dedicated tabs
-- **Category Organization**: Hierarchical product categorization
-- **Image Management**: Multiple product images with upload support
+**Authentication**
+- `POST /api/auth/register` - Register
+- `POST /api/auth/login` - Log in (returns a JWT)
+- `GET /api/auth/me` - Current user
+- `POST /api/auth/forgot-password` - Request a password reset
+- `POST /api/auth/change-password` - Change password (logged in)
+- `POST /api/auth/membership/upgrade-request` - Request a membership upgrade (reviewed by an admin)
 
-### Order System
-- **User Information**: Complete user details in admin orders panel
-- **Status Tracking**: Order lifecycle management (Pending, Processing, Shipped, Delivered)
-- **Payment Integration**: Payment proof upload and verification
-- **Shipping Management**: Address management and delivery tracking
+**Products**
+- `GET /api/products/` - List products (pagination, category filter)
+- `GET /api/products/search` - Search products
+- `GET /api/products/{id}` - Product details
+- `POST /api/admin/products/` - Create a product (admin)
+- `PUT /api/admin/products/{id}/` - Update a product (admin)
+- `DELETE /api/admin/products/{id}/` - Delete a product (admin)
 
-### Beauty Tips System
-- **Category Management**: Organized beauty content by topics
-- **Fallback Categories**: Default categories when database is empty
-- **Rich Content**: Text and image support for beauty tutorials
-- **Admin Interface**: Easy content creation and management
+**Cart and orders**
+- `GET /api/cart/`, `POST /api/cart/items/` - Read the cart, add an item
+- `POST /api/orders/` - Create an order (the server calculates prices and total)
+- `GET /api/orders/` - List my orders (admins see all orders)
+- `PUT /api/orders/{id}/cancel` - Cancel a pending order
+- `PUT /api/orders/{id}/status` - Update order status (admin)
+- `GET /api/admin/orders/` - All orders with user details (admin)
 
-### Virtual Makeup
-- **Photo Upload**: User photo upload for makeup try-on
-- **Real-time Processing**: Instant makeup effect application
-- **Result Sharing**: Save and share makeup results
-- **Product Integration**: Link virtual makeup to actual products
+**Beauty tips**
+- `GET /api/beauty-tips/` - List beauty tips
+- `GET /api/beauty-tips/{id}` - Beauty tip details
+- `GET /api/beauty-tips/categories/list` - Categories
+- `POST /api/beauty-tips/` - Create a beauty tip (admin)
 
-### Membership Tiers
-- **Free Tier**: Basic access to products and beauty tips
-- **Gold Tier**: Premium features and exclusive content
-- **Diamond Tier**: VIP access with priority support
+**Virtual makeup**
+- `POST /api/virtual-makeup/try-makeup` - Apply makeup to an uploaded photo (logged in; limited by membership tier)
 
-## 🐳 Docker Commands
+**Admin**
+- `GET /api/admin/stats/` - Dashboard statistics
+- `GET /api/admin/users/` - User management
+- `PATCH /api/admin/users/{id}/membership/` - Change a user's membership tier
+- `GET /api/admin/memberships/` - Membership upgrade requests
+- `GET /api/admin/password-reset-requests/` - Password reset requests
+- `PUT /api/admin/password-reset-requests/{id}/complete/` - Mark a request as done
+
+**Health**
+- `GET /health` - Returns `{"status": "ok"}` (used by the Docker health check)
+
+## Useful Docker commands
 
 ```bash
-# Build all services
-docker-compose build --no-cache
-
-# Start all services
-docker-compose up -d
-
-# Stop all services
-docker-compose down
-
-# View logs
-docker-compose logs -f [service-name]
-
-# Rebuild specific service
-docker-compose build backend --no-cache
-docker-compose build frontend --no-cache
-
-# Access container shell
-docker-compose exec backend bash
-docker-compose exec frontend sh
-
-# Check service status
-docker-compose ps
-
-# Restart specific service
-docker-compose restart backend
+docker-compose build --no-cache          # Rebuild all images
+docker-compose up -d                     # Start
+docker-compose down                      # Stop
+docker-compose logs -f backend           # Follow backend logs
+docker-compose ps                        # Service status
+docker-compose exec backend bash         # Shell in the backend container
+docker-compose restart backend           # Restart the backend
 ```
 
-## 🔍 API Endpoints
+## Troubleshooting
 
-### Authentication
-- `POST /api/auth/register` - User registration
-- `POST /api/auth/login` - User login
-- `POST /api/auth/forgot-password` - Request password reset
-- `POST /api/auth/change-password` - Change password (authenticated)
+- **Backend exits with "JWT_SECRET is not set"** - Set `JWT_SECRET` in `.env` to a long random value, or set `ENV=development` for local testing.
+- **Database connection fails** - Check `MONGO_URI`, the network access list in MongoDB Atlas, and `docker-compose logs backend`.
+- **No admin account** - Set `ADMIN_EMAIL` and `ADMIN_PASSWORD` in `.env` and restart the backend.
+- **Checkout shows "contact the shop" instead of bank details** - Set the `REACT_APP_BANK_*` variables and rebuild the frontend.
 
-### Products
-- `GET /api/products` - List products with pagination and search
-- `GET /api/products/{id}` - Get product details
-- `POST /api/admin/products` - Create product (admin only)
-- `PUT /api/admin/products/{id}` - Update product (admin only)
-- `DELETE /api/admin/products/{id}` - Delete product (admin only)
+## License
 
-### Orders
-- `GET /api/orders` - List user orders (authenticated)
-- `POST /api/orders` - Create new order (authenticated)
-- `GET /api/admin/orders/` - List all orders with user details (admin)
-- `PUT /api/admin/orders/{id}/status` - Update order status (admin)
+No license has been chosen yet, so default copyright rules apply. Please contact the owner before reusing the code.
 
-### Beauty Tips
-- `GET /api/beauty-tips` - List beauty tips with pagination
-- `GET /api/beauty-tips/{id}` - Get beauty tip details
-- `GET /api/beauty-tips/categories/list` - Get available categories
-- `POST /api/admin/beauty-tips` - Create beauty tip (admin)
+## Contact
 
-### Admin
-- `GET /api/admin/stats` - Dashboard statistics
-- `GET /api/admin/users` - User management
-- `GET /api/admin/password-reset-requests` - Password reset requests
-- `PUT /api/admin/password-reset-requests/{id}/complete` - Mark request complete
-
-## 🚨 Troubleshooting
-
-### Common Issues
-
-1. **Database Connection Failed**
-   ```bash
-   # Check MongoDB Atlas connection
-   # Verify network access and credentials
-   # Check backend logs
-   docker-compose logs backend
-   ```
-
-2. **Frontend Build Failed**
-   ```bash
-   # Clear Docker cache and rebuild
-   docker-compose build frontend --no-cache
-   
-   # Check for TypeScript errors
-   docker-compose logs frontend
-   ```
-
-3. **Service Not Starting**
-   ```bash
-   # Check service status
-   docker-compose ps
-   
-   # View service logs
-   docker-compose logs [service-name]
-   
-   # Restart service
-   docker-compose restart [service-name]
-   ```
-
-### Development Mode
-
-For local development without Docker:
-
-```bash
-# Backend
-cd backend
-pip install -r requirements.txt
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-
-# Frontend
-cd frontend
-npm install
-npm start
-```
-
-## 📝 Recent Updates
-
-### v1.0 - Production Release
-- ✅ Migrated to MongoDB Atlas cloud database
-- ✅ Added product summary field for better UX
-- ✅ Fixed admin orders panel user display
-- ✅ Implemented fallback categories for beauty tips
-- ✅ Added clear login prompts for reviews
-- ✅ Enhanced beauty tip category management
-- ✅ Cleaned project structure for production
-- ✅ Comprehensive error handling and validation
-
-### Current Status
-This repository contains a **complete, production-ready e-commerce platform**. All features are fully implemented and tested. The application is ready for immediate deployment to any hosting provider.
-
-## 🚀 Production Deployment
-
-### Deployment Options
-1. **Cloud Platforms**
-   - **AWS** - EC2, ECS, or Lambda
-   - **Google Cloud** - Compute Engine or Cloud Run
-   - **Azure** - Virtual Machines or App Service
-   - **DigitalOcean** - Droplets or App Platform
-   - **Heroku** - Container deployment
-
-2. **Self-Hosted**
-   - **VPS** - Ubuntu/CentOS server
-   - **Dedicated Server** - Full control deployment
-   - **Local Network** - Intranet deployment
-
-### Quick Production Setup
-```bash
-# 1. Clone repository
-git clone <your-repo-url>
-cd Flashion
-
-# 2. Configure environment
-cp .env.example .env
-# Edit .env with production values
-
-# 3. Deploy with Docker
-docker-compose -f docker-compose.yml up -d
-
-# 4. Configure reverse proxy (Nginx)
-# 5. Set up SSL certificates
-# 6. Configure domain DNS
-```
-
-### Production Checklist
-- [ ] MongoDB Atlas database configured
-- [ ] Environment variables set for production
-- [ ] SSL certificates installed
-- [ ] Domain DNS configured
-- [ ] Firewall rules set
-- [ ] Monitoring and logging configured
-- [ ] Backup strategy implemented
-
-## 📄 License
-
-This project is licensed under the MIT License.
-
-## 🤝 Support
-
-For support and questions:
-- Create an issue in the repository
-- Contact the development team
-- Check the API documentation at `/docs` endpoint
-
----
-
-**Flashion** - Your Beauty, Your Style ✨
-
-*Built with ❤️ using modern web technologies*
+Mai Anh Quan - quanmaianh.work@gmail.com - GitHub [@Qcymaq](https://github.com/Qcymaq) - LinkedIn [maq159](https://www.linkedin.com/in/maq159)
