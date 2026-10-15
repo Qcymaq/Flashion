@@ -17,3 +17,10 @@ export const hasBankTransferDetails = Boolean(bankTransferDetails.accountNumber)
 // (Kept in Vietnamese to match the rest of the user interface.)
 export const PAYMENT_DETAILS_UNAVAILABLE_MESSAGE =
   'Thông tin thanh toán sẽ được cung cấp sau khi đặt hàng. Vui lòng liên hệ cửa hàng.';
+
+// Shown on the payment confirmation page, after the order was placed, when no
+// bank details are configured.
+// English: "Your order has been received. The shop will contact you with the
+// payment details."
+export const PAYMENT_DETAILS_AFTER_ORDER_MESSAGE =
+  'Đơn hàng của bạn đã được ghi nhận. Cửa hàng sẽ liên hệ với bạn để cung cấp thông tin thanh toán.';
