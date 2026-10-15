@@ -7,7 +7,8 @@ services:
     # Values are read from the .env file next to this compose file (see .env.example).
     environment:
       - ENV=${ENV:-production}
-      - MONGO_URI=${MONGO_URI}
+      # Fail fast if MONGO_URI is missing instead of passing an empty value.
+      - MONGO_URI=${MONGO_URI:?Set MONGO_URI in .env (see .env.example)}
       - JWT_SECRET=${JWT_SECRET}
       - ADMIN_EMAIL=${ADMIN_EMAIL:-}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
