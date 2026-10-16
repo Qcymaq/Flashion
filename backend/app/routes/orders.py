@@ -24,32 +24,63 @@ class PaginatedOrdersResponse(BaseModel):
     total: int
     has_more: bool
 
+# Flat shipping fee (VND) added to every order. Must match the fee shown on
+# the checkout page (frontend/src/pages/CheckoutPage.tsx).
+SHIPPING_FEE = 30000
+
 @router.post("/", response_model=Order)
 async def create_order(
     order: OrderCreate,
     current_user: User = Depends(get_current_active_user)
 ):
     db = get_database()
-    
-    # Verify all products exist and are in stock
+
+    if not order.items:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Order must contain at least one item"
+        )
+
+    # Verify all products exist and are in stock.
+    # Prices and totals always come from the database, never from the client.
+    # Quantities are added up per product, so several lines for the same
+    # product cannot together order more than the stock.
+    items_total = 0.0
+    requested_quantities = {}
     for item in order.items:
+        if item.quantity < 1:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Quantity must be at least 1 for product {item.product_id}"
+            )
+        if not ObjectId.is_valid(item.product_id):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid product ID {item.product_id}"
+            )
         product = await db.products.find_one({"_id": ObjectId(item.product_id)})
         if not product:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Product {item.product_id} not found"
             )
-        if product["stock"] < item.quantity:
+        product_key = str(product["_id"])  # normalised, e.g. upper/lower-case hex IDs
+        requested_quantities[product_key] = requested_quantities.get(product_key, 0) + item.quantity
+        if product["stock"] < requested_quantities[product_key]:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Not enough stock for product {product['name']}"
             )
-        # Add product name to the order item
+        # Use the product name and current price from the database
         item.product_name = product["name"]
+        item.price = float(product["price"])
+        items_total += item.price * item.quantity
     
     # Create order
     order_dict = order.dict()
     order_dict["user_id"] = str(current_user.id)  # Ensure user_id is set correctly
+    order_dict["total_price"] = items_total + SHIPPING_FEE  # Ignore client-supplied total
+    order_dict["status"] = OrderStatus.PENDING.value  # New orders always start as pending
     order_dict["created_at"] = datetime.utcnow()
     order_dict["updated_at"] = datetime.utcnow()
     

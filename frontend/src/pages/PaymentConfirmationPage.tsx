@@ -24,6 +24,7 @@ import {
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
+import { bankTransferDetails, hasBankTransferDetails, PAYMENT_DETAILS_AFTER_ORDER_MESSAGE } from '../config/payment';
 
 interface BankDetails {
   bankName: string;
@@ -120,9 +121,11 @@ const PaymentConfirmationPage: React.FC = () => {
             Xác nhận thanh toán
           </Typography>
 
-          <Alert severity="info" sx={{ mb: 4 }}>
-            Vui lòng chuyển khoản theo thông tin bên dưới để hoàn tất đơn hàng của bạn.
-          </Alert>
+          {hasBankTransferDetails && (
+            <Alert severity="info" sx={{ mb: 4 }}>
+              Vui lòng chuyển khoản theo thông tin bên dưới để hoàn tất đơn hàng của bạn.
+            </Alert>
+          )}
 
           <Grid container spacing={4}>
             <Grid item xs={12} md={6}>
@@ -138,60 +141,72 @@ const PaymentConfirmationPage: React.FC = () => {
                   </Box>
                 </AccordionSummary>
                 <AccordionDetails>
-                  <Grid container spacing={2}>
-                    <Grid item xs={12} md={6}>
-                      <Card sx={{ p: 2, bgcolor: '#f8f9fa' }}>
-                        <Typography variant="subtitle2" fontWeight={600} gutterBottom>
-                          Vietcombank
-                        </Typography>
-                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                          <Typography variant="body2" sx={{ mr: 1 }}>Số tài khoản:</Typography>
-                          <Typography variant="body2" fontWeight={600} fontFamily="monospace">
-                            0631000524772
-                          </Typography>
-                          <IconButton 
-                            size="small" 
-                            onClick={() => handleCopy('0631000524772', 'account')}
-                          >
-                            <ContentCopy fontSize="small" />
-                          </IconButton>
-                        </Box>
-                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                          <Typography variant="body2" sx={{ mr: 1 }}>Chủ tài khoản:</Typography>
-                          <Typography variant="body2" fontWeight={600}>
-                            PHAM DANG KHOI
-                          </Typography>
-                        </Box>
-                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                          <Typography variant="body2" sx={{ mr: 1 }}>Nội dung:</Typography>
-                          <Typography variant="body2" fontWeight={600} fontFamily="monospace">
-                            {transferContent}
-                          </Typography>
-                          <IconButton 
-                            size="small" 
-                            onClick={() => handleCopy(transferContent, 'content')}
-                          >
-                            <ContentCopy fontSize="small" />
-                          </IconButton>
-                        </Box>
-                      </Card>
+                  {hasBankTransferDetails ? (
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} md={6}>
+                        <Card sx={{ p: 2, bgcolor: '#f8f9fa' }}>
+                          {bankTransferDetails.bankName && (
+                            <Typography variant="subtitle2" fontWeight={600} gutterBottom>
+                              {bankTransferDetails.bankName}
+                            </Typography>
+                          )}
+                          <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                            <Typography variant="body2" sx={{ mr: 1 }}>Số tài khoản:</Typography>
+                            <Typography variant="body2" fontWeight={600} fontFamily="monospace">
+                              {bankTransferDetails.accountNumber}
+                            </Typography>
+                            <IconButton 
+                              size="small" 
+                              onClick={() => handleCopy(bankTransferDetails.accountNumber, 'account')}
+                            >
+                              <ContentCopy fontSize="small" />
+                            </IconButton>
+                          </Box>
+                          {bankTransferDetails.accountHolder && (
+                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                              <Typography variant="body2" sx={{ mr: 1 }}>Chủ tài khoản:</Typography>
+                              <Typography variant="body2" fontWeight={600}>
+                                {bankTransferDetails.accountHolder}
+                              </Typography>
+                            </Box>
+                          )}
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <Typography variant="body2" sx={{ mr: 1 }}>Nội dung:</Typography>
+                            <Typography variant="body2" fontWeight={600} fontFamily="monospace">
+                              {transferContent}
+                            </Typography>
+                            <IconButton 
+                              size="small" 
+                              onClick={() => handleCopy(transferContent, 'content')}
+                            >
+                              <ContentCopy fontSize="small" />
+                            </IconButton>
+                          </Box>
+                        </Card>
+                      </Grid>
+
+                      {bankTransferDetails.qrImageUrl && (
+                        <Grid item xs={12} md={6}>
+                          <Card sx={{ p: 2, bgcolor: '#f8f9fa' }}>
+                            <Typography variant="subtitle2" fontWeight={600} gutterBottom>
+                              QR Code thanh toán
+                            </Typography>
+                            <Box sx={{ textAlign: 'center' }}>
+                              <img 
+                                src={bankTransferDetails.qrImageUrl} 
+                                alt="QR Code" 
+                                style={{ width: 150, height: 150 }}
+                              />
+                            </Box>
+                          </Card>
+                        </Grid>
+                      )}
                     </Grid>
-                    
-                    <Grid item xs={12} md={6}>
-                      <Card sx={{ p: 2, bgcolor: '#f8f9fa' }}>
-                        <Typography variant="subtitle2" fontWeight={600} gutterBottom>
-                          QR Code thanh toán
-                        </Typography>
-                        <Box sx={{ textAlign: 'center' }}>
-                          <img 
-                            src="/images/vietcombank-qr.png" 
-                            alt="QR Code" 
-                            style={{ width: 150, height: 150 }}
-                          />
-                        </Box>
-                      </Card>
-                    </Grid>
-                  </Grid>
+                  ) : (
+                    <Alert severity="info">
+                      {PAYMENT_DETAILS_AFTER_ORDER_MESSAGE}
+                    </Alert>
+                  )}
 
                   {copied && (
                     <Alert severity="success" sx={{ mt: 2 }}>
@@ -202,12 +217,14 @@ const PaymentConfirmationPage: React.FC = () => {
               </Accordion>
 
               <Box sx={{ mt: 3, p: 2, bgcolor: '#fff3cd', borderRadius: 1, border: '1px solid #ffeaa7' }}>
-                <Typography variant="h6" sx={{ color: '#856404', mb: 1 }}>
-                  Số tiền cần chuyển: {bankDetails.amount.toLocaleString()}đ
+                <Typography variant="h6" sx={{ color: '#856404', mb: hasBankTransferDetails ? 1 : 0 }}>
+                  {hasBankTransferDetails ? 'Số tiền cần chuyển' : 'Số tiền cần thanh toán'}: {bankDetails.amount.toLocaleString()}đ
                 </Typography>
-                <Typography variant="body2" sx={{ color: '#856404' }}>
-                  ⚠️ Lưu ý: Vui lòng chuyển khoản chính xác số tiền và ghi đúng nội dung để đơn hàng được xử lý nhanh chóng.
-                </Typography>
+                {hasBankTransferDetails && (
+                  <Typography variant="body2" sx={{ color: '#856404' }}>
+                    ⚠️ Lưu ý: Vui lòng chuyển khoản chính xác số tiền và ghi đúng nội dung để đơn hàng được xử lý nhanh chóng.
+                  </Typography>
+                )}
               </Box>
             </Grid>
 

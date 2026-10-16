@@ -98,6 +98,9 @@ async def try_makeup(
             }
         )
         
+    except HTTPException:
+        # Keep intended status codes (e.g. 403 when the try-on quota is used up)
+        raise
     except Exception as e:
         print(f"Error in try_makeup: {str(e)}")  # Add logging
         raise HTTPException(status_code=500, detail=str(e)) 

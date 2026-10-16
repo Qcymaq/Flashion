@@ -1,0 +1,36 @@
+# Backend dependencies (tested with Python 3.11, the version used in the Docker image).
+# Only packages imported by backend/app are listed. Versions match the
+# environment the project was developed with.
+
+# Web framework and server
+fastapi==0.115.2
+uvicorn==0.24.0
+python-multipart==0.0.18
+
+# Data validation
+# Pinned to the version the backend tests were run with.
+pydantic==2.14.1
+email-validator==2.1.0.post1
+
+# Database (MongoDB)
+motor==3.3.1
+pymongo==4.6.1
+beanie==1.29.0
+
+# Authentication
+# 3.4.0+ fixes CVE-2024-33663 and CVE-2024-33664.
+python-jose[cryptography]==3.5.0
+passlib==1.7.4
+bcrypt==4.0.1
+
+# Configuration
+python-dotenv==1.0.0
+
+# Images and virtual makeup
+pillow==11.3.0
+numpy==1.26.4
+opencv-python==4.11.0.86
+mediapipe==0.10.21
+
+# Admin reports (CSV export)
+pandas==2.2.3

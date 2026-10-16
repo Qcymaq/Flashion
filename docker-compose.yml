@@ -4,15 +4,22 @@ services:
       context: .
       dockerfile: backend/app/Dockerfile
     restart: unless-stopped
+    # Values are read from the .env file next to this compose file (see .env.example).
     environment:
-      - MONGO_URI=mongodb+srv://username:password@cluster.mongodb.net/flashion?retryWrites=true&w=majority
+      - ENV=${ENV:-production}
+      # Fail fast if MONGO_URI is missing instead of passing an empty value.
+      - MONGO_URI=${MONGO_URI:?Set MONGO_URI in .env (see .env.example)}
+      - JWT_SECRET=${JWT_SECRET}
+      - ADMIN_EMAIL=${ADMIN_EMAIL:-}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
     ports:
       - "8000:8000"
     volumes:
       - ./backend/app/uploads:/backend/app/uploads
       - ./backend/app/static:/backend/app/static
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      # The python:3.11-slim image has no curl, so use Python's standard library.
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -22,6 +29,11 @@ services:
       context: ./frontend
       args:
         - REACT_APP_API_URL=https://flashion.xyz/api
+        # Optional bank transfer details, read from .env (see .env.example)
+        - REACT_APP_BANK_NAME=${REACT_APP_BANK_NAME:-}
+        - REACT_APP_BANK_ACCOUNT_NUMBER=${REACT_APP_BANK_ACCOUNT_NUMBER:-}
+        - REACT_APP_BANK_ACCOUNT_HOLDER=${REACT_APP_BANK_ACCOUNT_HOLDER:-}
+        - REACT_APP_BANK_QR_URL=${REACT_APP_BANK_QR_URL:-}
     restart: unless-stopped
     depends_on:
       - backend
