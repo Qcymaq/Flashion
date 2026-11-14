@@ -1,6 +1,17 @@
 # Flashion - Beauty E-commerce Platform
 
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white)
+![MongoDB](https://img.shields.io/badge/MongoDB-47A248?style=flat-square&logo=mongodb&logoColor=white)
+![React](https://img.shields.io/badge/React-20232A?style=flat-square&logo=react&logoColor=61DAFB)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white)
+![MediaPipe](https://img.shields.io/badge/MediaPipe-0097A7?style=flat-square)
+![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white)
+
 Flashion is an online shop for beauty products with a virtual makeup try-on feature. It was built as a team project for a startup course in 2025. The backend uses FastAPI and MongoDB, the frontend uses React and TypeScript, and both can run in Docker. The user interface is in Vietnamese.
+
+![Flashion product page with color swatches, add to cart and virtual try-on](docs/media/screenshots/02-product-detail.png)
+
+More pages are in the [screenshots](#screenshots) below.
 
 ## Project status
 
@@ -40,19 +51,48 @@ My role (Mai Anh Quan, [@Qcymaq](https://github.com/Qcymaq)):
 
 ## Demo
 
-The two GIFs below are short (about 5 seconds) screen recordings of the homepage. They do not show logging in, the cart and checkout, the virtual makeup page or the admin panel.
+### Screenshots
 
-### 1. Top of the homepage
+These screenshots come from a local copy of the app running on the real FastAPI backend with sample data: 7 sample products with made-up names and prices, one demo customer and 8 sample orders. The product photos are the images in `frontend/public/images`.
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/media/screenshots/01-products.png" alt="Product catalog with search, category filter and sorting"></td>
+    <td width="50%"><img src="docs/media/screenshots/02-product-detail.png" alt="Product page with color swatches, quantity, add to cart and virtual try-on buttons"></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Catalog:</b> search, category filter and sorting</td>
+    <td align="center"><b>Product page:</b> colors, stock, add to cart and virtual try-on</td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/media/screenshots/03-checkout.png" alt="Checkout page with order items, shipping details and bank transfer payment"></td>
+    <td width="50%"><img src="docs/media/screenshots/04-virtual-makeup.png" alt="Virtual makeup page with lip and cheek options, photo upload, camera and color picker"></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Checkout:</b> shipping details from the profile, bank transfer</td>
+    <td align="center"><b>Virtual makeup:</b> choose lips or cheeks, upload a photo or use the camera, pick a color</td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/media/screenshots/05-admin-dashboard.png" alt="Admin dashboard with users, orders, revenue and best-selling products"></td>
+    <td width="50%"><img src="docs/media/screenshots/06-admin-products.png" alt="Admin product management table with stock, category and status"></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Admin dashboard:</b> users, orders, revenue and best sellers</td>
+    <td align="center"><b>Admin products:</b> stock, category and status</td>
+  </tr>
+</table>
+
+### Homepage recordings
+
+Two short (about 5 seconds) screen recordings of the homepage.
 
 ![Top of the homepage](docs/media/frontend-tour.gif)
 
-*A short scroll through the top of the homepage: the virtual makeup banner, the product carousel and the start of the try-on guide.*
-
-### 2. Homepage down to the contact form
+*The top of the homepage: the virtual makeup banner, the product carousel and the start of the try-on guide.*
 
 ![Homepage down to the contact form](docs/media/features-demo.gif)
 
-*A short scroll from the top of the homepage down to the contact form, past the product carousel, the try-on guide and the beauty blog section.*
+*From the top of the homepage down to the contact form, past the product carousel, the try-on guide and the beauty blog section.*
 
 ## Tech stack
 
