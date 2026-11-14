@@ -62,12 +62,16 @@ interface DashboardStats {
 
 interface User {
   _id: string;
-  full_name: string;
+  name?: string;
+  full_name?: string;
   email: string;
   role: string;
   created_at: string;
   membership?: string; // Added for the new dropdown
 }
+
+// The users API returns `name`; `full_name` is kept for older records.
+const userDisplayName = (user: User) => user.name || user.full_name || '';
 
 interface TopProduct {
   _id: string;
@@ -372,7 +376,12 @@ const AdminDashboard = () => {
       const response = await fetchWithAuth(endpoints.admin.passwordResetStats);
       if (response.ok) {
         const data = await response.json();
-        setPasswordResetStats(data);
+        setPasswordResetStats({
+          pending: data.pending_requests ?? 0,
+          completed: data.completed_requests ?? 0,
+          expired: data.expired_requests ?? 0,
+          total: data.total_requests ?? 0,
+        });
       }
     } catch (error) {
       console.error('Error fetching password reset stats:', error);
@@ -560,11 +569,11 @@ const AdminDashboard = () => {
                     >
                       <ListItemAvatar>
                         <Avatar>
-                          {user.full_name ? user.full_name.charAt(0).toUpperCase() : '?'}
+                          {userDisplayName(user) ? userDisplayName(user).charAt(0).toUpperCase() : '?'}
                         </Avatar>
                       </ListItemAvatar>
                       <ListItemText
-                        primary={user.full_name || 'Không có tên'}
+                        primary={userDisplayName(user) || 'Không có tên'}
                         secondary={
                           <>
                             <Typography component="span" variant="body2" color="text.primary">
